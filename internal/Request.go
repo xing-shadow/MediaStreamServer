@@ -31,13 +31,16 @@ const (
 )
 
 const (
-	ContentLength = "Content-Length"
-	UserAgent = "User-Agent"
-	Authorization = "Authorization"
-	SessionID = "Session"
-	Require = "Require"
+	ContentLength    = "Content-Length"
+	UserAgent        = "User-Agent"
+	Authorization    = "Authorization"
+	SessionID        = "Session"
+	Require          = "Require"
 	WWW_Authenticate = "WWW-Authenticate"
-	Accept = "Accept"
+	Accept           = "Accept"
+	Transport        = "Transport"
+	Range            = "Range"
+	CSeq             = "CSeq"
 )
 
 type Request struct {
@@ -51,9 +54,9 @@ type Request struct {
 
 func (r *Request) String() string {
 	var str strings.Builder
-	str.WriteString(fmt.Sprintf("%s %s %s\r\n",r.Method,r.URL,r.Version))
+	str.WriteString(fmt.Sprintf("%s %s %s\r\n", r.Method, r.URL, r.Version))
 	for key, val := range r.Header {
-		str.WriteString(fmt.Sprintf("%s: %s\r\n",key,val))
+		str.WriteString(fmt.Sprintf("%s: %s\r\n", key, val))
 	}
 	str.WriteString("\r\n")
 	str.WriteString(r.Body)
@@ -61,10 +64,10 @@ func (r *Request) String() string {
 }
 
 func (r *Request) GetLength() int {
-	v,err := strconv.ParseInt(r.Header[ContentLength],10,64)
+	v, err := strconv.ParseInt(r.Header[ContentLength], 10, 64)
 	if err != nil {
 		return 0
-	}else {
+	} else {
 		return int(v)
 	}
 }

@@ -14,17 +14,27 @@ type Session struct {
 	Agent    string
 	authLine string
 
-	Conn   *ConnRich
-	ConnRW *bufio.ReadWriter
+	Conn          *ConnRich
+	ConnRW        *bufio.ReadWriter
+	TransportType int
 
 	vChannel        int
 	vChannelControl int
 	aChannel        int
 	aChannelControl int
-	Seq             int
-	SdpInfos        []*SdpInfo
+	vCodec          string
+	vControl        string
+	aCodec          string
+	aControl        string
+
+	Seq      int
+	SdpInfos map[string]*SdpInfo
 
 	Stoped bool
+}
+
+func NewSession(conn net.Conn) {
+	session := &Session{}
 }
 
 func NewRtspClientSession(conn net.Conn, agent string) *Session {
@@ -40,5 +50,17 @@ func NewRtspClientSession(conn net.Conn, agent string) *Session {
 	session.vChannelControl = 1
 	session.aChannel = 2
 	session.aChannelControl = 3
+	session.TransportType = TRANS_TYPE_TCP
 	return session
+}
+
+func (s *Session) Stop() {
+	if s.Stoped {
+		return
+	}
+	s.Stoped = true
+	if s.Conn != nil {
+		s.Conn.conn.Close()
+		s.Conn = nil
+	}
 }
