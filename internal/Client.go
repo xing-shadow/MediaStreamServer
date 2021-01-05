@@ -17,8 +17,8 @@ import (
 )
 
 type RtspClient struct {
-	Sess          *Session
-	authorization string
+	Sess     *Session
+	authLine string
 }
 
 func NewRespClient(addr string) *RtspClient {
@@ -38,7 +38,7 @@ func (c *RtspClient) StartPlayRealStream() (err error) {
 		c.Sess.Url = rtspAddr.String()
 	}
 	conn, err = net.Dial("tcp", rtspAddr.Host)
-	c.Sess = NewRtspClientSession(conn, "")
+	c.Sess.NewRtspClientSession(conn, "")
 	err = c.startRequestRealStream()
 	if err != nil {
 		return err
@@ -111,7 +111,9 @@ func (c *RtspClient) streamReceiverStream() {
 			}
 			switch int(channel) {
 			case c.Sess.vChannel:
+				fmt.Println("Receiver video len: ", rtpLen)
 			case c.Sess.aChannel:
+				fmt.Println("Receiver audio len: ", rtpLen)
 			}
 		} else {
 			_ = c.Sess.ConnRW.UnreadByte()
@@ -133,7 +135,6 @@ func (c *RtspClient) Stop() {
 
 func (c *RtspClient) options() (resp Response, err error) {
 	header := make(map[string]string)
-	header[Require] = "implicit-play"
 	return c.Request(OPTIONS, header)
 }
 
@@ -163,7 +164,8 @@ func (c *RtspClient) setup() (resp Response, err error) {
 			}
 			if c.Sess.TransportType == TRANS_TYPE_TCP {
 				headers[Transport] = fmt.Sprintf("RTP/AVP/TCP;unicast;interleaved=%d-%d", c.Sess.vChannel, c.Sess.vChannelControl)
-				l, err := url.Parse(_url)
+				var l *url.URL
+				l, err = url.Parse(_url)
 				if err != nil {
 					return
 				}
@@ -189,7 +191,8 @@ func (c *RtspClient) setup() (resp Response, err error) {
 			}
 			if c.Sess.TransportType == TRANS_TYPE_TCP {
 				headers[Transport] = fmt.Sprintf("RTP/AVP/TCP;unicast;interleaved=%d-%d", c.Sess.aChannel, c.Sess.aChannelControl)
-				l, err := url.Parse(_url)
+				var l *url.URL
+				l, err = url.Parse(_url)
 				if err != nil {
 					return
 				}
@@ -237,10 +240,16 @@ func (c *RtspClient) RequestWithPath(method string, url string, headers map[stri
 		headers = make(map[string]string)
 	}
 	logger := Logger.GetLogger()
-	headers[UserAgent] = c.Sess.Agent
+	if c.Sess.Agent != "" {
+		headers[UserAgent] = c.Sess.Agent
+	}
 	if len(headers[Authorization]) == 0 {
-		if len(c.authorization) != 0 {
-			headers[Authorization] = c.authorization
+		if len(c.authLine) != 0 {
+			authorization, err := Digest(method, c.authLine, c.Sess.Url)
+			if err != nil {
+				return Response{}, err
+			}
+			headers[Authorization] = authorization
 		}
 	}
 	if len(c.Sess.SessionID) > 0 {
@@ -259,10 +268,12 @@ func (c *RtspClient) RequestWithPath(method string, url string, headers map[stri
 		logger.Error("write rtsp request info fail:" + err.Error())
 		return Response{}, err
 	}
+	_ = c.Sess.ConnRW.Flush()
 	if !needResp {
 		return Response{}, nil
 	}
 	resp, err := ReadResponse(c.Sess.ConnRW.Reader)
+	fmt.Println(resp)
 	if err != nil {
 		return Response{}, err
 	}
@@ -282,16 +293,8 @@ func (c *RtspClient) checkAuth(method string, resp Response) error {
 		if !ok {
 			return fmt.Errorf("status equeal 401 ,but not found www-authenticate")
 		}
-		if strings.Index(val, "Digest") == 0 {
-			authorization, err := Digest(method, val, c.Sess.Url)
-			if err != nil {
-				return err
-			}
-			c.authorization = authorization
-			return nil
-		} else {
-			return fmt.Errorf("status equeal 401,but auth algorithm no support")
-		}
+		c.authLine = val
+		return nil
 	} else {
 		return nil
 	}
@@ -306,7 +309,7 @@ func Digest(method string, authLine string, _url string) (authResp string, err e
 	nonce := ""
 	realmRex := regexp.MustCompile(`realm="(.*?)"`)
 	result1 := realmRex.FindStringSubmatch(authLine)
-	nonceRx := regexp.MustCompile(`nonce=(.*?)`)
+	nonceRx := regexp.MustCompile(`nonce="(.*?)"`)
 	result2 := nonceRx.FindStringSubmatch(authLine)
 	if len(result1) == 2 {
 		realm = result1[1]
@@ -329,6 +332,6 @@ func Digest(method string, authLine string, _url string) (authResp string, err e
 	md5UserRealmPwd := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", username, realm, password))))
 	md5MethodURL := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s", method, l.String()))))
 	response := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", md5UserRealmPwd, nonce, md5MethodURL))))
-	authLine = fmt.Sprintf("Digest username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"%s\", response=\"%s\"", username, realm, nonce, l.String(), response)
+	authResp = fmt.Sprintf("Digest username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"%s\", response=\"%s\"", username, realm, nonce, l.String(), response)
 	return
 }

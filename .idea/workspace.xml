@@ -6,10 +6,8 @@
       <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/internal/Client.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/Client.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/Request.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/Request.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/Server.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/Server.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Response_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/Response_test.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/internal/Session.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/Session.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/main.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -23,7 +21,7 @@
       </list>
     </option>
   </component>
-  <component name="GOROOT" url="file:///snap/go/6745" />
+  <component name="GOROOT" url="file://$USER_HOME$/GoRoot/go" />
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
@@ -46,7 +44,8 @@
     <property name="configurable..is.expanded" value="false" />
     <property name="configurable.GoLibrariesConfigurable.is.expanded" value="true" />
     <property name="go.import.settings.migrated" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../xing-doraemon" />
+    <property name="go.sdk.automatically.set" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
   </component>
   <component name="RecentsManager">
@@ -54,7 +53,7 @@
       <recent name="$PROJECT_DIR$/pkg/Logger" />
     </key>
   </component>
-  <component name="RunManager" selected="Go Test.TestReadResponse in git.hub.com/wangyl/RTSP_AGREEMENT/internal">
+  <component name="RunManager" selected="Go Build.Rtsp_Service">
     <configuration name="Rtsp_Service" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true">
       <module name="RTSP_AGREEMENT" />
       <working_directory value="$PROJECT_DIR$" />

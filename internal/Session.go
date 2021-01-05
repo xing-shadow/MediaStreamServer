@@ -10,9 +10,9 @@ type Session struct {
 	SessionID  string
 	CustomPath string
 
-	Url      string
-	Agent    string
-	authLine string
+	Url        string
+	Agent      string
+	AuthEnable bool
 
 	Conn          *ConnRich
 	ConnRW        *bufio.ReadWriter
@@ -33,25 +33,24 @@ type Session struct {
 	Stoped bool
 }
 
-func NewSession(conn net.Conn) {
-	session := &Session{}
-}
+//func NewSession(conn net.Conn) {
+//	session := &Session{}
+//}
 
-func NewRtspClientSession(conn net.Conn, agent string) *Session {
-	session := new(Session)
-	session.Agent = agent
+func (s *Session) NewRtspClientSession(conn net.Conn, agent string) *Session {
+	s.Agent = agent
 	//Conn
-	session.Conn = NewConnRich(conn)
-	session.Conn.SetReadTimeout(time.Second * 10)
-	session.Conn.SetWriteTimeout(time.Second * 10)
-	session.ConnRW = bufio.NewReadWriter(bufio.NewReader(session.Conn), bufio.NewWriter(session.Conn))
+	s.Conn = NewConnRich(conn)
+	s.Conn.SetReadTimeout(time.Second * 10)
+	s.Conn.SetWriteTimeout(time.Second * 10)
+	s.ConnRW = bufio.NewReadWriter(bufio.NewReader(s.Conn), bufio.NewWriter(s.Conn))
 	//Channel
-	session.vChannel = 0
-	session.vChannelControl = 1
-	session.aChannel = 2
-	session.aChannelControl = 3
-	session.TransportType = TRANS_TYPE_TCP
-	return session
+	s.vChannel = 0
+	s.vChannelControl = 1
+	s.aChannel = 2
+	s.aChannelControl = 3
+	s.TransportType = TRANS_TYPE_TCP
+	return s
 }
 
 func (s *Session) Stop() {
