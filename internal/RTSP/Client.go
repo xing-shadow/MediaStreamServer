@@ -1,10 +1,11 @@
-package internal
+package RTSP
 
 import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTP"
 	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger"
 	"go.uber.org/zap"
 	"io"
@@ -106,14 +107,25 @@ func (c *RtspClient) streamReceiverStream() {
 			}
 			rtpLen := binary.BigEndian.Uint16(buf2)
 			if rtpLen > 65535 {
-				logger.Error("read bad rtp pkg len gte 65535 bytes")
+				logger.Error("read bad rtp pkg len gte 65535 bytes", zap.String("rtsp_addr", c.Sess.Url))
+				return
+			}
+			data := make([]byte, rtpLen)
+			_, err := io.ReadFull(c.Sess.ConnRW, data)
+			if err != nil {
+				logger.Error("read rtp data fail:"+err.Error(), zap.String("rtsp_addr", c.Sess.Url))
 				return
 			}
 			switch int(channel) {
 			case c.Sess.vChannel:
-				fmt.Println("Receiver video len: ", rtpLen)
-			case c.Sess.aChannel:
-				fmt.Println("Receiver audio len: ", rtpLen)
+				rtpPack, err := RTP.ParseRTPPack(data)
+				if err != nil {
+					logger.Error("parse rtp pack fail:"+err.Error(), zap.String("rtsp_addr", c.Sess.Url))
+					return
+				}
+				fmt.Println(rtpPack.Mark, rtpPack.PayloadType, rtpPack.Ts, rtpPack.SSRC)
+				//case c.Sess.aChannel:
+				//	fmt.Println("Receiver audio len: ", rtpLen)
 			}
 		} else {
 			_ = c.Sess.ConnRW.UnreadByte()

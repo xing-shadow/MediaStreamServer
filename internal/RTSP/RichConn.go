@@ -1,4 +1,4 @@
-package internal
+package RTSP
 
 import (
 	"net"
@@ -13,7 +13,7 @@ type ConnRich struct {
 
 func NewConnRich(conn net.Conn) *ConnRich {
 	return &ConnRich{
-		conn:         conn,
+		conn: conn,
 	}
 }
 

@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/internal"
+	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTSP"
 	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger"
 	"net"
 	"runtime"
@@ -11,7 +11,7 @@ import (
 type RtspService struct {
 	Port        int
 	listener    net.Listener
-	Server      *internal.RtspServer
+	Server      *RTSP.RtspServer
 	connChannel chan net.Conn
 
 	Stoped chan bool
@@ -20,7 +20,7 @@ type RtspService struct {
 
 func (s *RtspService) Init(port int) error {
 	s.Port = port
-	s.Server = internal.NewRtspServer()
+	s.Server = RTSP.NewRtspServer()
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Port))
 	if err != nil {
 		return err
@@ -31,13 +31,14 @@ func (s *RtspService) Init(port int) error {
 	}
 }
 
-func (s *RtspService) StartWork() error {
+func (s *RtspService) StartWork() {
 	for true {
 		select {
-		case conn, ok := <-s.connChannel:
-			if !ok {
-				break
-			}
+		//TODO set conn
+		//case conn, ok := <-s.connChannel:
+		//	if !ok {
+		//		break
+		//	}
 
 		case <-s.Stoped:
 			break

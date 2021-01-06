@@ -1,9 +1,10 @@
-package internal
+package RTSP
 
 import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
@@ -16,52 +17,53 @@ type Response struct {
 	Body       string
 }
 
-func ReadResponse(rd *bufio.Reader) (Response,error) {
+func ReadResponse(rd *bufio.Reader) (Response, error) {
 	var resp = Response{
 		Header: make(map[string]string),
 	}
-	respLine,err := rd.ReadString('\n')
+	respLine, err := rd.ReadString('\n')
 	if err != nil {
 		return resp, err
 	}
-	parts := strings.Split(respLine," ")
+	parts := strings.Split(respLine, " ")
 	if len(parts) != 3 {
-		return Response{},nil
+		return Response{}, fmt.Errorf("parse Response-Line fail:%v", err)
 	}
 	//Response-Line
 	resp.Version = parts[0]
-	resp.StatusCode,err = strconv.Atoi(parts[1])
+	resp.StatusCode, err = strconv.Atoi(parts[1])
 	if err != nil {
 		return resp, err
 	}
 	resp.Status = parts[2]
 	//Response-Header
 	for {
-		line,err := rd.ReadString('\n')
+		line, err := rd.ReadString('\n')
 		if err != nil {
-			return resp,err
+			return resp, err
 		}
 		lineTrimSpace := strings.TrimSpace(line)
-		if  len(lineTrimSpace) == 0 {
+		if len(lineTrimSpace) == 0 {
 			break
 		}
-		parts := strings.SplitN(lineTrimSpace,":",2)
+		parts := strings.SplitN(lineTrimSpace, ":", 2)
 		if len(parts) < 2 {
-			return resp,errors.New("parse resp header invalid")
-		}else {
+			return resp, errors.New("parse resp header invalid")
+		} else {
 			resp.Header[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
 		}
 	}
 	//Response-Body
-	contentLength,_ := strconv.Atoi(resp.Header[ContentLength])
+	contentLength, _ := strconv.Atoi(resp.Header[ContentLength])
 	if contentLength > 0 {
-		body,err := rd.Peek(contentLength)
+		body := make([]byte, contentLength)
+		_, err := io.ReadFull(rd, body)
 		if err != nil {
-			return resp,err
+			return Response{}, err
 		}
 		resp.Body = string(body)
 	}
-	return resp,nil
+	return resp, nil
 }
 
 func (r *Response) String() string {

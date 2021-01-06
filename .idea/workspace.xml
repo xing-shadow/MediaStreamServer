@@ -1,13 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="53dcabd7-c728-45b1-bb35-4445f9da83db" name="Default Changelist" comment="">
+    <list default="true" id="53dcabd7-c728-45b1-bb35-4445f9da83db" name="Default Changelist" comment="&quot;test rtsp pull&quot;">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/Client.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/Client.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/Response_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/Response_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/Session.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/Session.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/RtspService.go" beforeDir="false" afterPath="$PROJECT_DIR$/app/RtspService.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Client.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Client.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Constant.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Constant.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Player.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Player.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Pusher.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Pusher.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Request.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Request.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Response.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Response.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Response_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Response_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/RichConn.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/RichConn.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Rtp.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Rtp.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Sdp.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Sdp.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Server.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Server.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/internal/Session.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/RTSP/Session.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,15 +53,16 @@
     <property name="configurable.GoLibrariesConfigurable.is.expanded" value="true" />
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$USER_HOME$/GoRoot/go/src" />
     <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/internal/RTSP" />
       <recent name="$PROJECT_DIR$/pkg/Logger" />
     </key>
   </component>
-  <component name="RunManager" selected="Go Build.Rtsp_Service">
+  <component name="RunManager" selected="Go Test.TestReadResponse in git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTSP">
     <configuration name="Rtsp_Service" type="GoApplicationRunConfiguration" factoryName="Go Application" temporary="true">
       <module name="RTSP_AGREEMENT" />
       <working_directory value="$PROJECT_DIR$" />
@@ -86,6 +95,17 @@
       <pattern value="^\QTestReadResponse\E$" />
       <method v="2" />
     </configuration>
+    <configuration name="TestReadResponse in git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTSP" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="RTSP_AGREEMENT" />
+      <working_directory value="$PROJECT_DIR$/internal/RTSP" />
+      <framework value="gotest" />
+      <kind value="PACKAGE" />
+      <package value="git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTSP" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <pattern value="^\QTestReadResponse\E$" />
+      <method v="2" />
+    </configuration>
     <configuration name="TestZapLogger in git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="RTSP_AGREEMENT" />
       <working_directory value="$PROJECT_DIR$/pkg/Logger" />
@@ -102,12 +122,14 @@
       <item itemvalue="Go Test.TestZapLogger in git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger" />
       <item itemvalue="Go Test.TestColor in git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger" />
       <item itemvalue="Go Test.TestReadResponse in git.hub.com/wangyl/RTSP_AGREEMENT/internal" />
+      <item itemvalue="Go Test.TestReadResponse in git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTSP" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Go Test.TestReadResponse in git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTSP" />
+        <item itemvalue="Go Build.Rtsp_Service" />
         <item itemvalue="Go Test.TestReadResponse in git.hub.com/wangyl/RTSP_AGREEMENT/internal" />
         <item itemvalue="Go Test.TestZapLogger in git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger" />
-        <item itemvalue="Go Build.Rtsp_Service" />
         <item itemvalue="Go Test.TestColor in git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger" />
       </list>
     </recent_temporary>
@@ -127,6 +149,10 @@
       </map>
     </option>
     <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="&quot;test rtsp pull&quot;" />
+    <option name="LAST_COMMIT_MESSAGE" value="&quot;test rtsp pull&quot;" />
   </component>
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>

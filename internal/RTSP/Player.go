@@ -1,4 +1,4 @@
-package internal
+package RTSP
 
 type Player struct {
 }

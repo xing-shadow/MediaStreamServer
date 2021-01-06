@@ -1,4 +1,4 @@
-package internal
+package RTSP
 
 import (
 	"encoding/base64"
@@ -25,9 +25,9 @@ func ParseSdp(SdpRaw string) map[string]*SdpInfo {
 	var sdpInfo *SdpInfo
 	for _, line := range strings.Split(SdpRaw, "\n") {
 		line = strings.TrimSpace(line)
-		typeval := strings.Split(line, "=")
+		typeval := strings.SplitN(line, "=", 2)
 		if len(typeval) == 2 {
-			fields := strings.SplitN(typeval[1], " ",2)
+			fields := strings.SplitN(typeval[1], " ", 2)
 			switch typeval[0] {
 			case "m":
 				switch fields[0] {
@@ -36,24 +36,24 @@ func ParseSdp(SdpRaw string) map[string]*SdpInfo {
 						AVType: fields[0],
 					}
 					sdpMap["video"] = sdpInfo
-					mfields := strings.Split(fields[1]," ")
-					if len(mfields) >=3 {
-						sdpInfo.PayloadType,_ = strconv.Atoi(mfields[2])
+					mfields := strings.Split(fields[1], " ")
+					if len(mfields) >= 3 {
+						sdpInfo.PayloadType, _ = strconv.Atoi(mfields[2])
 					}
 				case "audio":
 					sdpInfo = &SdpInfo{
 						AVType: fields[0],
 					}
 					sdpMap["audio"] = sdpInfo
-					mfields := strings.Split(fields[1]," ")
-					if len(mfields) >=3 {
-						sdpInfo.PayloadType,_ = strconv.Atoi(mfields[2])
+					mfields := strings.Split(fields[1], " ")
+					if len(mfields) >= 3 {
+						sdpInfo.PayloadType, _ = strconv.Atoi(mfields[2])
 					}
 				}
 			case "a":
-					if sdpInfo != nil {
-						for _, field := range fields {
-						mfields := strings.SplitN(field,":",2)
+				if sdpInfo != nil {
+					for _, field := range fields {
+						mfields := strings.SplitN(field, ":", 2)
 						if len(mfields) >= 2 {
 							switch mfields[0] {
 							case "control":
@@ -62,7 +62,7 @@ func ParseSdp(SdpRaw string) map[string]*SdpInfo {
 								sdpInfo.Rtpmap, _ = strconv.Atoi(mfields[1])
 							}
 						}
-						mfields = strings.Split(field,"/")
+						mfields = strings.Split(field, "/")
 						if len(mfields) >= 2 {
 							switch mfields[0] {
 							case "MPEG4-GENERIC":
@@ -76,23 +76,23 @@ func ParseSdp(SdpRaw string) map[string]*SdpInfo {
 								sdpInfo.TimeScale = i
 							}
 						}
-						mfields = strings.Split(field,";")
+						mfields = strings.Split(field, ";")
 						if len(mfields) > 1 {
 							for _, mfield := range mfields {
-								keyval := strings.SplitN(mfield,"=",2)
-								if len(keyval) == 2{
+								keyval := strings.SplitN(mfield, "=", 2)
+								if len(keyval) == 2 {
 									switch keyval[0] {
 									case "config":
-										sdpInfo.Config,_ = hex.DecodeString(keyval[1])
+										sdpInfo.Config, _ = hex.DecodeString(keyval[1])
 									case "sizelength":
-										sdpInfo.SizeLength,_ = strconv.Atoi(keyval[1])
+										sdpInfo.SizeLength, _ = strconv.Atoi(keyval[1])
 									case "indexlength":
-										sdpInfo.indexLength,_ = strconv.Atoi(keyval[1])
+										sdpInfo.indexLength, _ = strconv.Atoi(keyval[1])
 									case "sprop-parameter-sets":
-										ppsSps := strings.SplitN(keyval[1],",",2)
+										ppsSps := strings.SplitN(keyval[1], ",", 2)
 										for _, item := range ppsSps {
-											val,_ := base64.StdEncoding.DecodeString(item)
-											sdpInfo.SpropParameterSets = append(sdpInfo.SpropParameterSets,val)
+											val, _ := base64.StdEncoding.DecodeString(item)
+											sdpInfo.SpropParameterSets = append(sdpInfo.SpropParameterSets, val)
 										}
 									}
 								}
