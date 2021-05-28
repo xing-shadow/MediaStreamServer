@@ -11,18 +11,12 @@ type ConnRich struct {
 	conn         net.Conn
 }
 
-func NewConnRich(conn net.Conn) *ConnRich {
+func NewConnRich(conn net.Conn, timeout time.Duration) *ConnRich {
 	return &ConnRich{
-		conn: conn,
+		ReadTimeout:  timeout,
+		WriteTimeout: timeout,
+		conn:         conn,
 	}
-}
-
-func (c *ConnRich) SetReadTimeout(n time.Duration) {
-	c.ReadTimeout = n
-}
-
-func (c *ConnRich) SetWriteTimeout(n time.Duration) {
-	c.WriteTimeout = n
 }
 
 func (c *ConnRich) Write(p []byte) (n int, err error) {

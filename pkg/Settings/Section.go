@@ -1,15 +1,23 @@
 package Settings
 
 type Config struct {
-	App APP `toml:"APP"`
+	APP    APP    `toml:"APP"`
+	Logger Logger `toml:"Logger"`
 }
 
 func (c *Config) fixme() {
-	if c.App.RtspPort == 0 {
-		c.App.RtspPort = 554
+	if c.APP.RtspPort == 0 {
+		c.APP.RtspPort = 554
 	}
 }
 
 type APP struct {
 	RtspPort int `toml:"RtspPort"`
+}
+type Logger struct {
+	Level       string `toml:"Level"`
+	MaxSize     int    `toml:"MaxSize"`
+	MaxBackups  int    `toml:"MaxBackups"`
+	MaxAge      int    `toml:"MaxAge"`
+	Development bool   `toml:"Development"`
 }

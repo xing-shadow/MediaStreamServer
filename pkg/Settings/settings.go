@@ -16,5 +16,4 @@ func ReadConfig(configPath string) error {
 		config.fixme()
 		return nil
 	}
-
 }

@@ -1,41 +1,41 @@
 package main
 
 import (
-	"git.hub.com/wangyl/RTSP_AGREEMENT/app"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Settings"
-	"gopkg.in/alecthomas/kingpin.v2"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+
+	"git.hub.com/wangyl/RTSP_AGREEMENT/Global"
+	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTSP"
+	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Settings"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-var configPath string
-
 func main() {
-	a := kingpin.New(filepath.Base(os.Args[0]), "rtsp service")
+	a := kingpin.New(filepath.Base(os.Args[0]), "rtsp server")
 	a.HelpFlag.Short('h')
-	a.Flag("config", "config path").Short('c').StringVar(&configPath)
+	a.Flag("config", "config path").Short('c').StringVar(&Global.ConfigPath)
 	if _, err := a.Parse(os.Args[1:]); err != nil {
-		Logger.GetLogger().Error("init flag fail: " + err.Error())
+		fmt.Println("Parse Cmd Param fail:", err)
 		os.Exit(-1)
 	}
-	//init config
-	if err := Settings.ReadConfig(configPath); err != nil {
-		Logger.GetLogger().Error("init config fail: " + err.Error())
+	if err := Global.GlobalInit(); err != nil {
+		fmt.Println("Global Init fail:", err)
 		os.Exit(-1)
 	}
 	//start service
-	var rtspService app.RtspService
-	rtspService.Init(Settings.GetConfig().App.RtspPort)
-	rtspService.StartWork()
-
+	var srv = RTSP.NewRtspServer(Settings.GetConfig().APP.RtspPort)
+	if err := srv.Serve(); err != nil {
+		fmt.Println("Start Rtsp Server Fail:", err)
+		os.Exit(-1)
+	}
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	s := <-quit
 	switch s {
 	case syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT:
-		rtspService.Stop()
+		srv.Stop()
 	}
 }

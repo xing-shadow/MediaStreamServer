@@ -1,3 +1,9 @@
 [APP]
 RtspPort = 20005
 
+[Logger]
+Level = "info"
+MaxSize = 500 #MB
+MaxBackups = 5 #
+MaxAge = 5 #day
+Development = true

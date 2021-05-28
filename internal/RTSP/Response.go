@@ -2,11 +2,11 @@ package RTSP
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type Response struct {
@@ -17,53 +17,73 @@ type Response struct {
 	Body       string
 }
 
-func ReadResponse(rd *bufio.Reader) (Response, error) {
-	var resp = Response{
-		Header: make(map[string]string),
-	}
-	respLine, err := rd.ReadString('\n')
+func ReadResponse(r *bufio.Reader) (resp Response, err error) {
+	respLine, err := r.ReadString('\n')
 	if err != nil {
 		return resp, err
 	}
-	parts := strings.Split(respLine, " ")
+	parts := strings.SplitN(strings.TrimSpace(respLine), " ", 3)
 	if len(parts) != 3 {
-		return Response{}, fmt.Errorf("parse Response-Line fail:%v", err)
+		err = errors.New("Read Rtsp Request Format Error")
+		return
 	}
 	//Response-Line
 	resp.Version = parts[0]
 	resp.StatusCode, err = strconv.Atoi(parts[1])
 	if err != nil {
-		return resp, err
+		err = errors.Wrap(err, "Rtsp Response Status Format Error")
+		return
 	}
 	resp.Status = parts[2]
 	//Response-Header
 	for {
-		line, err := rd.ReadString('\n')
+		var line string
+		line, err = r.ReadString('\n')
 		if err != nil {
 			return resp, err
 		}
-		lineTrimSpace := strings.TrimSpace(line)
-		if len(lineTrimSpace) == 0 {
+		if len(strings.TrimSpace(line)) == 0 {
 			break
 		}
-		parts := strings.SplitN(lineTrimSpace, ":", 2)
-		if len(parts) < 2 {
-			return resp, errors.New("parse resp header invalid")
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			err = errors.New("Rtsp Response Header Format Error")
+			return
 		} else {
+			if resp.Header == nil {
+				resp.Header = make(map[string]string)
+			}
 			resp.Header[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
 		}
 	}
 	//Response-Body
-	contentLength, _ := strconv.Atoi(resp.Header[ContentLength])
-	if contentLength > 0 {
-		body := make([]byte, contentLength)
-		_, err := io.ReadFull(rd, body)
+	contentLengthStr, ok := resp.Header[ContentLength]
+	if ok {
+
+		var contentLength int
+		contentLength, err = strconv.Atoi(contentLengthStr)
 		if err != nil {
-			return Response{}, err
+			err = errors.Wrap(err, "Rtsp Response Content-Length Foarmat Error")
+			return
 		}
-		resp.Body = string(body)
+		if contentLength > 0 {
+			var data []byte
+			data, err = r.Peek(contentLength)
+			if err != nil {
+				return
+			}
+			resp.Body = string(data)
+		}
 	}
-	return resp, nil
+	return
+}
+
+func GenerateResponse(code int, desc string, header map[string]string, body string) (resp Response) {
+	resp.StatusCode = code
+	resp.Status = desc
+	resp.Header = header
+	resp.Body = body
+	return
 }
 
 func (r *Response) String() string {

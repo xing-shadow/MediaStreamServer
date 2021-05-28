@@ -16,9 +16,11 @@ const (
 	RTP_TYPE_VIDEOCONTROL
 )
 
-type SESSION_TYPE int
+type SessionType int
 
 const (
 	SESSION_TYPE_PLAYER = iota
 	SESION_TYPE_PUSHER
 )
+
+const MagicChar = 0x24

@@ -1,13 +1,18 @@
 package RTSP
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
 	"testing"
 )
 
 func TestReadResponse(t *testing.T) {
-	var client = NewRespClient("rtsp://admin:admin123@171.221.244.37:33556")
-	if err := client.StartPlayRealStream(); err != nil {
+	data := "RTSP/1.0 200 OK\r\nCSeq: 3\r\nSession:1389957320;timeout=60//服务器回应的会话标识符和超时时间\r\nTransport: RTP/AVP;unicast;client_port=1094-1095;server_port=12028-1202\r\n\r\n"
+	r := bytes.NewReader([]byte(data))
+	resp, err := ReadResponse(bufio.NewReader(r))
+	if err != nil {
 		t.Fatal(err)
 	}
-	select {}
+	fmt.Println(resp.String())
 }
