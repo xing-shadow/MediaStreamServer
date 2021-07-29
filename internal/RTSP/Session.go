@@ -289,7 +289,10 @@ func (s *Session) ANNOUNCE(ctx *Context) (err error) {
 		return err
 	}
 	s.sdpRaw = ctx.req.Body
-	NewPusher(s)
+	if _, isExit := NewPusher(s); isExit {
+		ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+		return
+	}
 	if mediaInfo, ok := s.sdpInfo["video"]; ok {
 		s.vControl, err = getControl(mediaInfo)
 	}

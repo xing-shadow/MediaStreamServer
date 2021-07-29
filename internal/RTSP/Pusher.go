@@ -24,7 +24,7 @@ type Pusher struct {
 	exit        chan struct{}
 }
 
-func NewPusher(s *Session) *Pusher {
+func NewPusher(s *Session) (*Pusher, bool) {
 	pusher := &Pusher{
 		s:      s,
 		Id:     s.channelCode,
@@ -33,7 +33,7 @@ func NewPusher(s *Session) *Pusher {
 		exit:   make(chan struct{}),
 	}
 	if old, isExit := s.Server.PushManager.addPusher(pusher); isExit {
-		return old
+		return old, true
 	}
 	s.RtpHandleFunc = append(s.RtpHandleFunc, func(frame RTP.Frame) {
 		pusher.queue <- frame
@@ -44,7 +44,7 @@ func NewPusher(s *Session) *Pusher {
 		pusher.ClearPlayer()
 	})
 	go pusher.checkPusher()
-	return pusher
+	return pusher, false
 }
 
 func (pThis *Pusher) checkPusher() {
