@@ -11,7 +11,7 @@ type ConnRich struct {
 	conn         net.Conn
 }
 
-func NewConnRich(conn net.Conn, timeout time.Duration) *ConnRich {
+func newConnRich(conn net.Conn, timeout time.Duration) *ConnRich {
 	return &ConnRich{
 		ReadTimeout:  timeout,
 		WriteTimeout: timeout,

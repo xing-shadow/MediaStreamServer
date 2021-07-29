@@ -79,6 +79,10 @@ func ReadResponse(r *bufio.Reader) (resp Response, err error) {
 }
 
 func GenerateResponse(code int, desc string, header map[string]string, body string) (resp Response) {
+	if len(body) != 0 {
+		header[ContentLength] = strconv.Itoa(len(body))
+	}
+	resp.Version = "RTSP/1.0"
 	resp.StatusCode = code
 	resp.Status = desc
 	resp.Header = header
@@ -86,7 +90,7 @@ func GenerateResponse(code int, desc string, header map[string]string, body stri
 	return
 }
 
-func (r *Response) String() string {
+func (r Response) String() string {
 	str := fmt.Sprintf("%s %d %s\r\n", r.Version, r.StatusCode, r.Status)
 	for key, value := range r.Header {
 		str += fmt.Sprintf("%s: %s\r\n", key, value)

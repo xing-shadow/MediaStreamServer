@@ -29,6 +29,38 @@ func NewRtspServer(port int) *RtspServer {
 	return rtspServer
 }
 
+func (s *RtspServer) Serve() error {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Port))
+	if err != nil {
+		return err
+	}
+	s.connChannel = make(chan net.Conn, 1)
+	s.Exit = make(chan struct{})
+	s.listener = listener
+	go s.handleConn()
+	return nil
+}
+
+func (s *RtspServer) handleConn() {
+	for !s.Closed {
+		conn, err := s.listener.Accept()
+		if err != nil {
+			Logger.GetLogger().Error("accept err: " + err.Error())
+			continue
+		}
+		s := NewSession(conn, s)
+		ctx := NewContext()
+		go s.start(ctx)
+	}
+}
+
+func (s *RtspServer) Stop() {
+	if s.Closed {
+		return
+	}
+	close(s.Exit)
+}
+
 type PusherManager struct {
 	pusherLock *sync.RWMutex
 	pusher     map[string]*Pusher
@@ -41,68 +73,29 @@ func NewPusherManager() *PusherManager {
 	}
 }
 
-func (pThis *PusherManager) AddPusher(pusher *Pusher) {
-	pThis.pusherLock.RLock()
-	old, ok := pThis.pusher[pusher.Id]
-	pThis.pusherLock.RUnlock()
-	if ok {
-		old.playerMutex.Lock()
-		for key, player := range old.player {
-			pusher.player[key] = player
-		}
-		old.playerMutex.Unlock()
-		old.Stop()
-	}
+func (pThis *PusherManager) addPusher(pusher *Pusher) (old *Pusher, isExit bool) {
 	pThis.pusherLock.Lock()
-	pThis.pusher[pusher.Id] = pusher
-	pThis.pusherLock.Unlock()
+	defer pThis.pusherLock.Unlock()
+	if old, isExit = pThis.pusher[pusher.Id]; isExit {
+		return
+	} else {
+		pThis.pusher[pusher.Id] = pusher
+		return pusher, false
+	}
 }
 
-func (pThis *PusherManager) Remove(pusher *Pusher) {
+func (pThis *PusherManager) pusherIsExit(id string) (pusher *Pusher, isExit bool) {
+	pThis.pusherLock.RLock()
+	defer pThis.pusherLock.RUnlock()
+	if pusher, isExit = pThis.pusher[id]; isExit {
+		return
+	} else {
+		return nil, false
+	}
+}
+
+func (pThis *PusherManager) remove(pusher *Pusher) {
 	pThis.pusherLock.Lock()
 	delete(pThis.pusher, pusher.Id)
 	pThis.pusherLock.Unlock()
-}
-
-func (s *RtspServer) Serve() error {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Port))
-	if err != nil {
-		return err
-	}
-	s.connChannel = make(chan net.Conn, 1)
-	s.Exit = make(chan struct{})
-	s.listener = listener
-	go func() {
-		for {
-			select {
-			case conn, ok := <-s.connChannel:
-				if !ok {
-					break
-				}
-				s := NewSession(conn, s)
-				go s.Start()
-			case <-s.Exit:
-				break
-			}
-		}
-	}()
-	return nil
-}
-
-func (s *RtspServer) Accept() {
-	for !s.Closed {
-		conn, err := s.listener.Accept()
-		if err != nil {
-			Logger.GetLogger().Error("accept err: " + err.Error())
-			continue
-		}
-		s.connChannel <- conn
-	}
-}
-
-func (s *RtspServer) Stop() {
-	if s.Closed {
-		return
-	}
-	close(s.Exit)
 }

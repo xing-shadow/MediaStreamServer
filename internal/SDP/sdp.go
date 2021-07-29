@@ -13,7 +13,6 @@ const (
 )
 
 type SdpInfo struct {
-	AVType      string
 	Codec       string
 	TimeScale   int
 	Control     string

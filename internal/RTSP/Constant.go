@@ -1,5 +1,7 @@
 package RTSP
 
+import "regexp"
+
 type TransType int
 
 const (
@@ -24,3 +26,7 @@ const (
 )
 
 const MagicChar = 0x24
+
+const StatusCodeNotAccept = 461 //
+
+var TcpRegexp = regexp.MustCompile("interleaved=(\\d+)(-(\\d+))?")

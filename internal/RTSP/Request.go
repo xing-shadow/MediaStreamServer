@@ -3,6 +3,7 @@ package RTSP
 import (
 	"bufio"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -54,7 +55,7 @@ type Request struct {
 	Body    string
 }
 
-func ReadRequest(r *bufio.Reader) (req Request, err error) {
+func ReadRequest(ctx *Context, r *bufio.Reader) (req Request, err error) {
 	line, err := r.ReadString('\n')
 	if err != nil {
 		return
@@ -65,7 +66,12 @@ func ReadRequest(r *bufio.Reader) (req Request, err error) {
 		err = fmt.Errorf("Request Line Format Error")
 	}
 	req.Method = parts[0]
+	ctx.method = parts[0]
 	req.URL = parts[1]
+	ctx.url, err = url.Parse(parts[1])
+	if err != nil {
+		return
+	}
 	req.Version = parts[2]
 	for {
 		line, err = r.ReadString('\n')
@@ -100,6 +106,7 @@ func ReadRequest(r *bufio.Reader) (req Request, err error) {
 			if err != nil {
 				return
 			}
+			r.Discard(contentLength)
 			req.Body = string(data)
 		}
 	}

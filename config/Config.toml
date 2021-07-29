@@ -1,5 +1,5 @@
 [APP]
-RtspPort = 20005
+RtspPort = 554
 
 [Logger]
 Level = "info"

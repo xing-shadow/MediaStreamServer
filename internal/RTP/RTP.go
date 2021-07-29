@@ -1,6 +1,9 @@
 package RTP
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"fmt"
+)
 
 /*
     0                   1                   2                   3
@@ -22,7 +25,12 @@ type RTPPack struct {
 	Seq         int
 	Ts          int
 	SSRC        int
+	PadLen      int
 	Data        []byte
+}
+
+func (p RTPPack) String() string {
+	return fmt.Sprintf("Seq:%v Mark:%v PayLoadType:%v Ts:%v SSRC:%v PadLen:%v", p.Seq, p.Mark, p.PayloadType, p.Ts, p.SSRC, p.PadLen)
 }
 
 func ParseRTPPack(src []byte) (RTPPack, error) {
@@ -38,8 +46,9 @@ func ParseRTPPack(src []byte) (RTPPack, error) {
 	ssrc := binary.BigEndian.Uint32(src[8:12])
 	var start, length int
 	start = 12 + 4*int(cc)
+	var padLen int
 	if p != 0 {
-		padLen := int(src[len(src)-1] & 0xff)
+		padLen = int(src[len(src)-1] & 0xff)
 		if padLen < 0 {
 			length = len(src) - 4*int(p) - start
 		} else {
@@ -48,14 +57,13 @@ func ParseRTPPack(src []byte) (RTPPack, error) {
 	} else {
 		length = len(src) - 4*int(p) - start
 	}
-	var data = make([]byte, length)
-	copy(data, src[start:start+length])
 	return RTPPack{
 		Mark:        int(m),
 		PayloadType: int(payload),
 		Seq:         int(seq),
 		Ts:          int(ts),
 		SSRC:        int(ssrc),
-		Data:        data,
+		PadLen:      padLen,
+		Data:        src[start : start+length],
 	}, nil
 }
