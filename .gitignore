@@ -6,6 +6,7 @@
 *.iml
 out
 gen
+
 ### Go template
 # Binaries for programs and plugins
 *.exe
@@ -13,7 +14,7 @@ gen
 *.dll
 *.so
 *.dylib
-
+RtspServer
 # Test binary, built with `go test -c`
 *.test
 
