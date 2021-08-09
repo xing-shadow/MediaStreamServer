@@ -26,7 +26,7 @@ func main() {
 		os.Exit(-1)
 	}
 	//start service
-	var srv = RTSP.NewRtspServer(Settings.GetConfig().APP.RtspPort)
+	var srv = RTSP.NewRtspServer(RTSP.Option{Cfg: Settings.GetConfig().RtspServer})
 	if err := srv.Serve(); err != nil {
 		fmt.Println("Start Rtsp Server Fail:", err)
 		os.Exit(-1)

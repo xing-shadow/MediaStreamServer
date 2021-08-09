@@ -24,14 +24,14 @@ func NewPlayer(pusher *Pusher, s *Session) *Player {
 	if old, isExit := pusher.addPlayer(player); isExit {
 		return old
 	}
-	s.StopHandleFunc = append(s.StopHandleFunc, func() {
+	s.stopHandleFunc = append(s.stopHandleFunc, func() {
 		player.cond.Broadcast()
 		pusher.playerMutex.Lock()
 		pusher.removePlayer(s.sessionID)
 		pusher.playerMutex.Unlock()
 	})
-	s.RtpHandleFunc = append(s.RtpHandleFunc, func(frame RTP.Frame) {
-		if s.Stoped {
+	s.rtpHandleFunc = append(s.rtpHandleFunc, func(frame RTP.Frame) {
+		if s.stoped {
 			return
 		}
 		player.cond.L.Lock()
@@ -62,7 +62,7 @@ func (pThis *Player) receiverFrame() {
 		if len(pThis.queue) == 0 {
 			pThis.cond.Wait()
 		}
-		if pThis.s.Stoped {
+		if pThis.s.stoped {
 			break
 		}
 		pack = pThis.queue[0]
@@ -89,18 +89,18 @@ func (pThis *Player) receiverFrame() {
 		//fmt.Println(rtpPacket)
 		var dataLen = make([]byte, 2)
 		binary.BigEndian.PutUint16(dataLen, uint16(pack.DataLen))
-		pThis.s.ConnRwLock.Lock()
-		pThis.s.ConnRW.WriteByte(0x24)
-		pThis.s.ConnRW.WriteByte(byte(channel))
-		pThis.s.ConnRW.Write(dataLen)
-		pThis.s.ConnRW.Write(pack.Data)
-		pThis.s.ConnRW.Flush()
-		pThis.s.ConnRwLock.Unlock()
+		pThis.s.connRwLock.Lock()
+		pThis.s.connRW.WriteByte(0x24)
+		pThis.s.connRW.WriteByte(byte(channel))
+		pThis.s.connRW.Write(dataLen)
+		pThis.s.connRW.Write(pack.Data)
+		pThis.s.connRW.Flush()
+		pThis.s.connRwLock.Unlock()
 	}
 }
 
 func (pThis *Player) sendFrame(frame RTP.Frame) {
-	for _, f := range pThis.s.RtpHandleFunc {
+	for _, f := range pThis.s.rtpHandleFunc {
 		f(frame)
 	}
 }

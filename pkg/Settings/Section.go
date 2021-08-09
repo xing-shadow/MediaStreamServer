@@ -1,19 +1,22 @@
 package Settings
 
 type Config struct {
-	APP    APP    `toml:"APP"`
-	Logger Logger `toml:"Logger"`
+	RtspServer RtspServer `toml:"RtspServer"`
+	Logger     Logger     `toml:"Logger"`
 }
 
-func (c *Config) fixme() {
-	if c.APP.RtspPort == 0 {
-		c.APP.RtspPort = 554
-	}
+type RtspServer struct {
+	RtspPort     int `toml:"RtspPort"`
+	ReadTimeout  int `toml:"ReadTimeout"`
+	WriteTimeout int `toml:"WriteTimeout"`
 }
 
-type APP struct {
-	RtspPort int `toml:"RtspPort"`
+type RtmpServer struct {
+	RtmpPort     int `toml:"RtmpPort"`
+	ReadTimeout  int `toml:"ReadTimeout"`
+	WriteTimeout int `toml:"WriteTimeout"`
 }
+
 type Logger struct {
 	Level       string `toml:"Level"`
 	MaxSize     int    `toml:"MaxSize"`

@@ -1,15 +1,6 @@
-package RTSP
-
-import (
-	"net/url"
-)
+package RTMP
 
 type Context struct {
-	url    *url.URL
-	method string
-	req    Request
-	resp   Response
-
 	Keys map[string]interface{}
 }
 

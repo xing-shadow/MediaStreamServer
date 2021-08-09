@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTP"
+	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RichConn"
 	"io"
 	"net"
 	"net/http"
@@ -26,8 +27,9 @@ import (
 )
 
 type Session struct {
+	ctx         *Context
 	sessionID   string
-	Seq         string
+	seq         string
 	nonce       string
 	realm       string
 	channelCode string
@@ -36,9 +38,9 @@ type Session struct {
 
 	Server *RtspServer
 
-	Conn       *ConnRich
-	ConnRW     *bufio.ReadWriter
-	ConnRwLock sync.Mutex
+	richConn   *RichConn.ConnRich
+	connRW     *bufio.ReadWriter
+	connRwLock sync.Mutex
 
 	sdpInfo         map[string]*SDP.SdpInfo
 	sdpRaw          string
@@ -49,25 +51,26 @@ type Session struct {
 	aChannel        int
 	aChannelControl int
 
-	RtpHandleFunc  []func(frame RTP.Frame)
-	StopHandleFunc []func()
+	rtpHandleFunc  []func(frame RTP.Frame)
+	stopHandleFunc []func()
 
-	Stoped bool
+	stoped bool
 }
 
-func NewSession(conn net.Conn, srv *RtspServer) *Session {
+func NewSession(ctx *Context, conn net.Conn, srv *RtspServer) *Session {
 	s := &Session{
+		ctx:       ctx,
 		sessionID: fmt.Sprintf("%d", Snowflake.GenerateId()),
 		realm:     "xing-shadow",
 		Server:    srv,
-		Conn:      newConnRich(conn, time.Second*10),
-		Stoped:    false,
+		richConn:  RichConn.NewConnRich(conn, time.Second*time.Duration(srv.opt.Cfg.ReadTimeout), time.Second*time.Duration(srv.opt.Cfg.WriteTimeout)),
+		stoped:    false,
 	}
-	s.ConnRW = bufio.NewReadWriter(bufio.NewReader(s.Conn), bufio.NewWriter(s.Conn))
+	s.connRW = bufio.NewReadWriter(bufio.NewReader(s.richConn), bufio.NewWriter(s.richConn))
 	return s
 }
 
-func (s *Session) start(ctx *Context) {
+func (s *Session) start() {
 	defer func() {
 		if err := recover(); err != nil {
 			buf := make([]byte, 1638)
@@ -77,21 +80,21 @@ func (s *Session) start(ctx *Context) {
 		}
 		s.stop()
 	}()
-	for !s.Stoped {
-		magic, err := s.ConnRW.ReadByte()
+	for !s.stoped {
+		magic, err := s.connRW.ReadByte()
 		if err != nil {
 			Logger.GetLogger().Error("Read Connection:"+err.Error(), zap.String("ChannelCode", s.channelCode))
 			return
 		}
 		if magic == MagicChar {
-			buf1, err := s.ConnRW.ReadByte()
+			buf1, err := s.connRW.ReadByte()
 			if err != nil {
 				Logger.GetLogger().Error("Read Connection:"+err.Error(), zap.String("ChannelCode", s.channelCode))
 				return
 			}
 			channel := int(buf1)
 			buf2 := make([]byte, 2)
-			if _, err := io.ReadFull(s.ConnRW, buf2); err != nil {
+			if _, err := io.ReadFull(s.connRW, buf2); err != nil {
 				Logger.GetLogger().Error("Read Connection:"+err.Error(), zap.String("ChannelCode", s.channelCode))
 				return
 			}
@@ -101,7 +104,7 @@ func (s *Session) start(ctx *Context) {
 				return
 			}
 			rtpData := make([]byte, rtpLen)
-			if _, err := io.ReadFull(s.ConnRW, rtpData); err != nil {
+			if _, err := io.ReadFull(s.connRW, rtpData); err != nil {
 				Logger.GetLogger().Error("Read Connection:"+err.Error(), zap.String("ChannelCode", s.channelCode))
 				return
 			}
@@ -112,7 +115,7 @@ func (s *Session) start(ctx *Context) {
 					Data:     rtpData,
 					DataLen:  int(rtpLen),
 				}
-				for _, f := range s.RtpHandleFunc {
+				for _, f := range s.rtpHandleFunc {
 					f(frame)
 				}
 			case s.aChannelControl:
@@ -121,7 +124,7 @@ func (s *Session) start(ctx *Context) {
 					Data:     rtpData,
 					DataLen:  int(rtpLen),
 				}
-				for _, f := range s.RtpHandleFunc {
+				for _, f := range s.rtpHandleFunc {
 					f(frame)
 				}
 			case s.vChannel:
@@ -130,7 +133,7 @@ func (s *Session) start(ctx *Context) {
 					Data:     rtpData,
 					DataLen:  int(rtpLen),
 				}
-				for _, f := range s.RtpHandleFunc {
+				for _, f := range s.rtpHandleFunc {
 					f(frame)
 				}
 			case s.vChannelControl:
@@ -139,17 +142,17 @@ func (s *Session) start(ctx *Context) {
 					Data:     rtpData,
 					DataLen:  int(rtpLen),
 				}
-				for _, f := range s.RtpHandleFunc {
+				for _, f := range s.rtpHandleFunc {
 					f(frame)
 				}
 			}
 		} else {
-			err := s.ConnRW.UnreadByte()
+			err := s.connRW.UnreadByte()
 			if err != nil {
 				Logger.GetLogger().Error("UnreadByte Fail:"+err.Error(), zap.String("ChannelCode", s.channelCode))
 				return
 			}
-			if err := s.HandleRtspRequest(ctx); err != nil {
+			if err := s.HandleRtspRequest(); err != nil {
 				Logger.GetLogger().Error("Handle Request Fail:"+err.Error(), zap.String("ChannelCode", s.channelCode))
 				return
 			}
@@ -157,75 +160,75 @@ func (s *Session) start(ctx *Context) {
 	}
 }
 
-func (s *Session) HandleRtspRequest(ctx *Context) (err error) {
+func (s *Session) HandleRtspRequest() (err error) {
 	defer func() {
-		s.HandleRtspResponse(ctx)
+		s.HandleRtspResponse()
 	}()
 	var req Request
-	req, err = ReadRequest(ctx, s.ConnRW.Reader)
+	req, err = ReadRequest(s.ctx, s.connRW.Reader)
 	if err != nil {
 		header := make(map[string]string)
 		header[SessionID] = s.sessionID
-		header[CSeq] = s.Seq
-		ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+		header[CSeq] = s.seq
+		s.ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
 		return
 	}
-	ctx.req = req
-	s.Seq = req.Header[CSeq]
-	err = s.AuthRequest(ctx)
+	s.ctx.req = req
+	s.seq = req.Header[CSeq]
+	err = s.AuthRequest()
 	if err != nil {
 		header := make(map[string]string)
 		header[SessionID] = s.sessionID
-		header[CSeq] = s.Seq
-		ctx.resp = GenerateResponse(400, "Invalid Request", header, "")
+		header[CSeq] = s.seq
+		s.ctx.resp = GenerateResponse(400, "Invalid Request", header, "")
 		return err
 	}
 	//if req.Method != OPTIONS {
-	//	if ok := s.checkAuth(ctx); !ok {
+	//	if ok := s.checkAuth(); !ok {
 	//		return
 	//	}
 	//}
 	switch req.Method {
 	case OPTIONS:
-		err = s.Options(ctx)
+		err = s.Options()
 	case DESCRIBE:
-		err = s.Describe(ctx)
+		err = s.Describe()
 	case ANNOUNCE:
-		err = s.ANNOUNCE(ctx)
+		err = s.ANNOUNCE()
 	case SETUP:
-		err = s.Setup(ctx)
+		err = s.Setup()
 	case PLAY:
-		err = s.Play(ctx)
+		err = s.Play()
 	case RECORD:
-		err = s.Record(ctx)
+		err = s.Record()
 	case PAUSE:
 	case TEARDOWN:
-		err = s.Teardown(ctx)
+		err = s.Teardown()
 	default:
 		header := make(map[string]string)
 		header[SessionID] = s.sessionID
-		header[CSeq] = s.Seq
-		ctx.resp = GenerateResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed), header, "")
+		header[CSeq] = s.seq
+		s.ctx.resp = GenerateResponse(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed), header, "")
 	}
 	return
 }
 
-func (s *Session) HandleRtspResponse(ctx *Context) {
-	s.ConnRwLock.Lock()
-	s.ConnRW.WriteString(ctx.resp.String())
-	s.ConnRW.Flush()
-	s.ConnRwLock.Unlock()
-	if ctx.method == TEARDOWN {
+func (s *Session) HandleRtspResponse() {
+	s.connRwLock.Lock()
+	s.connRW.WriteString(s.ctx.resp.String())
+	s.connRW.Flush()
+	s.connRwLock.Unlock()
+	if s.ctx.method == TEARDOWN {
 		s.stop()
 	}
-	if ctx.resp.StatusCode != http.StatusOK && ctx.resp.StatusCode != http.StatusUnauthorized && ctx.resp.StatusCode != StatusCodeNotAccept {
+	if s.ctx.resp.StatusCode != http.StatusOK && s.ctx.resp.StatusCode != http.StatusUnauthorized && s.ctx.resp.StatusCode != StatusCodeNotAccept {
 		s.stop()
 	}
 }
 
 //rtsp://admin:admin@host/ChannelCode=xxx
-func (s *Session) AuthRequest(ctx *Context) (err error) {
-	parts := strings.Split(ctx.url.Path, "/")
+func (s *Session) AuthRequest() (err error) {
+	parts := strings.Split(s.ctx.url.Path, "/")
 	var channelCode string
 	if len(parts) > 1 {
 		data := strings.Split(parts[1], "=")
@@ -247,24 +250,24 @@ func (s *Session) AuthRequest(ctx *Context) (err error) {
 	return nil
 }
 
-func (s *Session) Options(ctx *Context) error {
+func (s *Session) Options() error {
 	header := make(map[string]string)
 	header[SessionID] = s.sessionID
-	header[CSeq] = s.Seq
+	header[CSeq] = s.seq
 	header[Public] = "DESCRIBE,PLAY,SETUP,TEARDOWN,ANNOUNCE"
-	ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
+	s.ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
 	return nil
 }
 
-func (s *Session) Describe(ctx *Context) (err error) {
+func (s *Session) Describe() (err error) {
 	s.SessionType = SESSION_TYPE_PLAYER
 	header := make(map[string]string)
 	header[SessionID] = s.sessionID
-	header[CSeq] = s.Seq
+	header[CSeq] = s.seq
 	pusher, isExit := s.Server.PushManager.pusherIsExit(s.channelCode)
 	if !isExit {
 		err = errors.New("Not Found Pusher")
-		ctx.resp = GenerateResponse(http.StatusNotFound, http.StatusText(http.StatusNotFound), header, "")
+		s.ctx.resp = GenerateResponse(http.StatusNotFound, http.StatusText(http.StatusNotFound), header, "")
 		return
 	}
 	if mediaInfo, ok := pusher.s.sdpInfo["video"]; ok {
@@ -274,23 +277,23 @@ func (s *Session) Describe(ctx *Context) (err error) {
 		s.aControl, err = getControl(mediaInfo)
 	}
 	NewPlayer(pusher, s)
-	ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, pusher.getSdp())
+	s.ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, pusher.getSdp())
 	return
 }
 
-func (s *Session) ANNOUNCE(ctx *Context) (err error) {
+func (s *Session) ANNOUNCE() (err error) {
 	header := make(map[string]string)
 	header[SessionID] = s.sessionID
-	header[CSeq] = s.Seq
+	header[CSeq] = s.seq
 	s.SessionType = SESION_TYPE_PUSHER
-	s.sdpInfo, err = SDP.ParseSdp(ctx.req.Body)
+	s.sdpInfo, err = SDP.ParseSdp(s.ctx.req.Body)
 	if err != nil {
-		ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+		s.ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
 		return err
 	}
-	s.sdpRaw = ctx.req.Body
+	s.sdpRaw = s.ctx.req.Body
 	if _, isExit := NewPusher(s); isExit {
-		ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+		s.ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
 		return
 	}
 	if mediaInfo, ok := s.sdpInfo["video"]; ok {
@@ -300,9 +303,9 @@ func (s *Session) ANNOUNCE(ctx *Context) (err error) {
 		s.aControl, err = getControl(mediaInfo)
 	}
 	if err != nil {
-		ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+		s.ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
 	} else {
-		ctx.resp = GenerateResponse(200, "OK", header, "")
+		s.ctx.resp = GenerateResponse(200, "OK", header, "")
 	}
 	return
 }
@@ -319,116 +322,116 @@ func getControl(sdp *SDP.SdpInfo) (string, error) {
 	}
 }
 
-func (s *Session) Setup(ctx *Context) (err error) {
+func (s *Session) Setup() (err error) {
 	header := make(map[string]string)
 	header[SessionID] = s.sessionID
-	header[CSeq] = s.Seq
-	ts, ok := ctx.req.Header[Transport]
+	header[CSeq] = s.seq
+	ts, ok := s.ctx.req.Header[Transport]
 	if !ok {
-		ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+		s.ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
 		return errors.New("setup not found transport")
 	}
 	parts := strings.Split(ts, "/TCP;")
 	if len(parts) == 2 { //tcp发流
 		if tcpMatch := TcpRegexp.FindStringSubmatch(parts[1]); tcpMatch != nil {
-			setupPath := ctx.url.String()
+			setupPath := s.ctx.url.String()
 			if setupPath == s.vControl || (strings.Contains(setupPath, s.vControl) && strings.LastIndex(setupPath, s.vControl) == len(setupPath)-len(s.vControl)) {
 				s.vChannel, err = strconv.Atoi(tcpMatch[1])
 				if err != nil {
-					ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+					s.ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
 					return
 				}
 				s.vChannelControl, err = strconv.Atoi(tcpMatch[3])
 				if err != nil {
-					ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+					s.ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
 					return
 				} else {
 					header[Transport] = ts
-					ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
+					s.ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
 					return
 				}
 			}
 			if setupPath == s.aControl || (strings.Contains(setupPath, s.aControl) && strings.LastIndex(setupPath, s.aControl) == len(setupPath)-len(s.aControl)) {
 				s.aChannel, err = strconv.Atoi(tcpMatch[1])
 				if err != nil {
-					ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+					s.ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
 					return
 				}
 				s.aChannelControl, err = strconv.Atoi(tcpMatch[3])
 				if err != nil {
-					ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+					s.ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
 					return
 				} else {
 					header[Transport] = ts
-					ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
+					s.ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
 					return
 				}
 			}
 		}
 	} else { //不支持udp
-		ctx.resp = GenerateResponse(StatusCodeNotAccept, "Unsupported Transport", header, "")
+		s.ctx.resp = GenerateResponse(StatusCodeNotAccept, "Unsupported Transport", header, "")
 	}
 	return
 }
 
-func (s *Session) Play(ctx *Context) (err error) {
-	s.Conn.ReadTimeout = 0
+func (s *Session) Play() (err error) {
+	s.richConn.ReadTimeout = 0
 	header := make(map[string]string)
 	header[SessionID] = s.sessionID
-	header[CSeq] = s.Seq
+	header[CSeq] = s.seq
 	header[Range] = "npt=0.000-"
 	if pusher, isExit := s.Server.PushManager.pusherIsExit(s.channelCode); isExit {
 		if player, isExit := pusher.getPlayer(s.sessionID); isExit {
 			go player.receiverFrame()
-			ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
+			s.ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
 		} else {
-			ctx.resp = GenerateResponse(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), header, "")
+			s.ctx.resp = GenerateResponse(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), header, "")
 		}
 	} else {
-		ctx.resp = GenerateResponse(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), header, "")
+		s.ctx.resp = GenerateResponse(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), header, "")
 	}
 	return
 }
 
-func (s *Session) Record(ctx *Context) (err error) {
+func (s *Session) Record() (err error) {
 	header := make(map[string]string)
 	header[SessionID] = s.sessionID
-	header[CSeq] = s.Seq
+	header[CSeq] = s.seq
 	if pusher, isExit := s.Server.PushManager.pusherIsExit(s.channelCode); isExit {
 		go pusher.ReceiveRtp()
-		ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
+		s.ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
 	} else {
-		ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
+		s.ctx.resp = GenerateResponse(http.StatusBadRequest, http.StatusText(http.StatusBadRequest), header, "")
 		err = errors.New("not found pusher")
 	}
 	return
 }
 
-func (s *Session) Teardown(ctx *Context) (err error) {
+func (s *Session) Teardown() (err error) {
 	header := make(map[string]string)
 	header[SessionID] = s.sessionID
-	header[CSeq] = s.Seq
-	ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
+	header[CSeq] = s.seq
+	s.ctx.resp = GenerateResponse(http.StatusOK, http.StatusText(http.StatusOK), header, "")
 	return
 }
 
-func (s *Session) checkAuth(ctx *Context) bool {
-	authLien, ok := ctx.req.Header[Authorization]
+func (s *Session) checkAuth() bool {
+	authLien, ok := s.ctx.req.Header[Authorization]
 	if !ok {
 		header := make(map[string]string)
-		header[CSeq] = s.Seq
+		header[CSeq] = s.seq
 		header[SessionID] = s.sessionID
 		s.nonce = fmt.Sprintf("%x", md5.Sum([]byte(strconv.FormatInt(Snowflake.GenerateId(), 10))))
 		header[WWW_Authenticate] = fmt.Sprintf(`Digest realm="%s", nonce="%s", algorithm="MD5"`, s.realm, s.nonce)
-		ctx.resp = GenerateResponse(401, "Unauthorized", header, "")
+		s.ctx.resp = GenerateResponse(401, "Unauthorized", header, "")
 		return false
 	} else {
-		authFlag := s.digestAuth(authLien, ctx.method)
+		authFlag := s.digestAuth(authLien, s.ctx.method)
 		if !authFlag {
 			header := make(map[string]string)
-			header[CSeq] = s.Seq
+			header[CSeq] = s.seq
 			header[SessionID] = s.sessionID
-			ctx.resp = GenerateResponse(403, "Forbidden", header, "")
+			s.ctx.resp = GenerateResponse(403, "Forbidden", header, "")
 		}
 		return authFlag
 	}
@@ -466,15 +469,15 @@ func (s *Session) digestAuth(auth string, method string) bool {
 }
 
 func (s *Session) stop() {
-	if s.Stoped {
+	if s.stoped {
 		return
 	}
-	s.Stoped = true
-	for _, f := range s.StopHandleFunc {
+	s.stoped = true
+	for _, f := range s.stopHandleFunc {
 		f()
 	}
-	if s.Conn != nil {
-		s.Conn.conn.Close()
-		s.Conn = nil
+	if s.richConn != nil {
+		s.richConn.Conn.Close()
+		s.richConn = nil
 	}
 }

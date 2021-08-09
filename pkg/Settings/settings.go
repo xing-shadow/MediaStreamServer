@@ -13,7 +13,6 @@ func ReadConfig(configPath string) error {
 	if err != nil {
 		return err
 	} else {
-		config.fixme()
 		return nil
 	}
 }

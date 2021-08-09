@@ -30,7 +30,7 @@ type RTPPack struct {
 }
 
 func (p RTPPack) String() string {
-	return fmt.Sprintf("Seq:%v Mark:%v PayLoadType:%v Ts:%v SSRC:%v PadLen:%v", p.Seq, p.Mark, p.PayloadType, p.Ts, p.SSRC, p.PadLen)
+	return fmt.Sprintf("seq:%v Mark:%v PayLoadType:%v Ts:%v SSRC:%v PadLen:%v", p.Seq, p.Mark, p.PayloadType, p.Ts, p.SSRC, p.PadLen)
 }
 
 func ParseRTPPack(src []byte) (RTPPack, error) {

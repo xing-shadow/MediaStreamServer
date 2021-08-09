@@ -1,5 +1,7 @@
-[APP]
+[RtspServer]
 RtspPort = 554
+ReadTimeout = 10 #s
+WriteTimeout = 10 #s
 
 [Logger]
 Level = "info"

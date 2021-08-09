@@ -35,12 +35,12 @@ func NewPusher(s *Session) (*Pusher, bool) {
 	if old, isExit := s.Server.PushManager.addPusher(pusher); isExit {
 		return old, true
 	}
-	s.RtpHandleFunc = append(s.RtpHandleFunc, func(frame RTP.Frame) {
+	s.rtpHandleFunc = append(s.rtpHandleFunc, func(frame RTP.Frame) {
 		pusher.queue <- frame
 	})
-	s.StopHandleFunc = append(s.StopHandleFunc, func() {
+	s.stopHandleFunc = append(s.stopHandleFunc, func() {
 		close(pusher.exit)
-		s.Server.PushManager.remove(pusher)
+		s.Server.PushManager.removePusher(pusher)
 		pusher.ClearPlayer()
 	})
 	go pusher.checkPusher()
@@ -48,11 +48,11 @@ func NewPusher(s *Session) (*Pusher, bool) {
 }
 
 func (pThis *Pusher) checkPusher() {
-	for !pThis.s.Stoped {
+	for !pThis.s.stoped {
 		pThis.playerMutex.RLock()
 		var players strings.Builder
 		for _, player := range pThis.player {
-			players.WriteString(fmt.Sprintf(" %v", player.s.Conn.conn.RemoteAddr().String()))
+			players.WriteString(fmt.Sprintf(" %v", player.s.richConn.Conn.RemoteAddr().String()))
 		}
 		pThis.playerMutex.RUnlock()
 		Logger.GetLogger().Info("Current players:"+players.String(), zap.String("channelCode", pThis.s.channelCode))
@@ -101,7 +101,7 @@ func (pThis *Pusher) ReceiveRtp() {
 			fmt.Fprintf(os.Stderr, pl)
 		}
 	}()
-	for !pThis.s.Stoped {
+	for !pThis.s.stoped {
 		select {
 		case frame, ok := <-pThis.queue:
 			if !ok {

@@ -1,21 +1,20 @@
-package RTSP
+package RTMP
 
 import (
 	"fmt"
+	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger"
 	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Settings"
 	"net"
 	"sync"
-
-	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger"
 )
 
 type Option struct {
-	Cfg Settings.RtspServer
+	Cfg Settings.RtmpServer
 }
 
 func (o Option) fixme() {
-	if o.Cfg.RtspPort <= 0 {
-		o.Cfg.RtspPort = 554
+	if o.Cfg.RtmpPort <= 0 {
+		o.Cfg.RtmpPort = 1935
 	}
 	if o.Cfg.ReadTimeout < 0 {
 		o.Cfg.ReadTimeout = 10
@@ -25,7 +24,7 @@ func (o Option) fixme() {
 	}
 }
 
-type RtspServer struct {
+type RtmpServer struct {
 	opt         Option
 	listener    net.Listener
 	PushManager *PusherManager
@@ -33,17 +32,17 @@ type RtspServer struct {
 	Closed      bool
 }
 
-func NewRtspServer(opt Option) *RtspServer {
+func NewRtmpServer(opt Option) *RtmpServer {
 	opt.fixme()
-	rtspServer := &RtspServer{
+	rtspServer := &RtmpServer{
 		opt:         opt,
 		PushManager: NewPusherManager(),
 	}
 	return rtspServer
 }
 
-func (s *RtspServer) Serve() error {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.opt.Cfg.RtspPort))
+func (s *RtmpServer) Serve() error {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.opt.Cfg.RtmpPort))
 	if err != nil {
 		return err
 	}
@@ -53,7 +52,7 @@ func (s *RtspServer) Serve() error {
 	return nil
 }
 
-func (s *RtspServer) handleConn() {
+func (s *RtmpServer) handleConn() {
 	for !s.Closed {
 		conn, err := s.listener.Accept()
 		if err != nil {
@@ -66,7 +65,7 @@ func (s *RtspServer) handleConn() {
 	}
 }
 
-func (s *RtspServer) Stop() {
+func (s *RtmpServer) Stop() {
 	if s.Closed {
 		return
 	}
