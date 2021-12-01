@@ -6,5 +6,5 @@ make run
 
 ### 测试
 ffmpeg -re -i ./test2.mp4 -rtsp_transport tcp -c copy -f rtsp "rtsp://admin:123456@localhost:11554/ChannelCode=1"  
-ffplay -loglevel debug "rtsp://localhost:11554/ChannelCode=1"
+ffplay -loglevel debug "rtsp://admin:123456@localhost:11554/ChannelCode=1"
 
