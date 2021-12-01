@@ -3,6 +3,7 @@ package Settings
 type Config struct {
 	RtspServer RtspServer `toml:"RtspServer"`
 	Logger     Logger     `toml:"Logger"`
+	RtmpServer RtmpServer `toml:"RtmpServer"`
 }
 
 type RtspServer struct {

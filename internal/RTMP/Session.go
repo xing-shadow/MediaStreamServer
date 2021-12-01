@@ -92,6 +92,11 @@ func (s *Session) start() {
 		}
 	}
 	//
+	if s.isPublisher {
+		//NewPusher()
+	} else {
+
+	}
 }
 
 func (s *Session) handleCmdMsg(c *Chunk) error {
@@ -372,6 +377,13 @@ TsExtend:
 	if ts > 0xffffff {
 		err = s.connRw.WriteUintBE(ts, 4)
 	}
+	return
+}
+
+func (s *Session) getInfo() (app string, name string, url string) {
+	app = s.connInfo.App
+	name = s.publishInfo.Name
+	url = s.connInfo.TcUrl + "/" + s.publishInfo.Name
 	return
 }
 

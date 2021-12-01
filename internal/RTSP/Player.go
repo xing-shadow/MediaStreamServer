@@ -56,6 +56,7 @@ func (pThis *Player) receiverFrame() {
 			fmt.Fprintf(os.Stderr, pl)
 		}
 	}()
+	var dataLen = make([]byte, 2)
 	for {
 		var pack RTP.Frame
 		pThis.cond.L.Lock()
@@ -87,7 +88,6 @@ func (pThis *Player) receiverFrame() {
 		//	return
 		//}
 		//fmt.Println(rtpPacket)
-		var dataLen = make([]byte, 2)
 		binary.BigEndian.PutUint16(dataLen, uint16(pack.DataLen))
 		pThis.s.connRwLock.Lock()
 		pThis.s.connRW.WriteByte(0x24)

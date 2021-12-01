@@ -27,6 +27,8 @@ const (
 
 const MagicChar = 0x24
 
+const QueueLime = 32
+
 const StatusCodeNotAccept = 461 //
 
 var TcpRegexp = regexp.MustCompile("interleaved=(\\d+)(-(\\d+))?")

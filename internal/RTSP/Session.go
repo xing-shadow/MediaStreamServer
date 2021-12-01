@@ -80,6 +80,7 @@ func (s *Session) start() {
 		}
 		s.stop()
 	}()
+	buf2 := make([]byte, 2)
 	for !s.stoped {
 		magic, err := s.connRW.ReadByte()
 		if err != nil {
@@ -93,7 +94,6 @@ func (s *Session) start() {
 				return
 			}
 			channel := int(buf1)
-			buf2 := make([]byte, 2)
 			if _, err := io.ReadFull(s.connRW, buf2); err != nil {
 				Logger.GetLogger().Error("Read Connection:"+err.Error(), zap.String("ChannelCode", s.channelCode))
 				return
@@ -183,11 +183,11 @@ func (s *Session) HandleRtspRequest() (err error) {
 		s.ctx.resp = GenerateResponse(400, "Invalid Request", header, "")
 		return err
 	}
-	//if req.Method != OPTIONS {
-	//	if ok := s.checkAuth(); !ok {
-	//		return
-	//	}
-	//}
+	if req.Method != OPTIONS {
+		if ok := s.checkAuth(); !ok {
+			return
+		}
+	}
 	switch req.Method {
 	case OPTIONS:
 		err = s.Options()
@@ -458,7 +458,7 @@ func (s *Session) digestAuth(auth string, method string) bool {
 	if parts := respReg.FindStringSubmatch(auth); len(parts) == 2 {
 		resp = parts[1]
 	}
-	ha1 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", username, s.realm, "admin"))))
+	ha1 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", username, s.realm, "123456"))))
 	ha2 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s", method, uri))))
 	authResp := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", ha1, s.nonce, ha2))))
 	if authResp == resp {

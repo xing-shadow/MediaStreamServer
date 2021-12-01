@@ -1,5 +1,5 @@
 [RtspServer]
-RtspPort = 554
+RtspPort = 11554
 ReadTimeout = 10 #s
 WriteTimeout = 10 #s
 
@@ -9,3 +9,8 @@ MaxSize = 500 #MB
 MaxBackups = 5 #
 MaxAge = 5 #day
 Development = true
+
+[RtmpServer]
+RtmpPort = 1935
+ReadTimeout = 10 #s
+WriteTimeout = 10 #s
