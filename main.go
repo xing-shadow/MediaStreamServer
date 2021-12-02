@@ -8,7 +8,6 @@ import (
 	"syscall"
 
 	"git.hub.com/wangyl/RTSP_AGREEMENT/Global"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTMP"
 	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTSP"
 	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Settings"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -32,19 +31,12 @@ func main() {
 		fmt.Println("Start Rtsp Server Fail:", err)
 		os.Exit(-1)
 	}
-	var rtmpSrv = RTMP.NewRtmpServer(RTMP.Option{
-		Cfg: Settings.GetConfig().RtmpServer,
-	})
-	if err := rtmpSrv.Serve(); err != nil {
-		fmt.Println("Start Rtmp Server Fail:", err)
-		os.Exit(-1)
-	}
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	s := <-quit
 	switch s {
 	case syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT:
 		rtspSrv.Stop()
-		rtmpSrv.Stop()
 	}
 }
