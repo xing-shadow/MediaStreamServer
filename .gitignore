@@ -14,7 +14,6 @@ gen
 *.dll
 *.so
 *.dylib
-RtspServer
 # Test binary, built with `go test -c`
 *.test
 

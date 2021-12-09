@@ -3,7 +3,7 @@ package RTSP
 import (
 	"encoding/binary"
 	"fmt"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTP"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RTP"
 	"os"
 	"runtime"
 	"sync"

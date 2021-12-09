@@ -5,8 +5,8 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTP"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RichConn"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RTP"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RichConn"
 	"io"
 	"net"
 	"net/http"
@@ -19,9 +19,9 @@ import (
 	"sync"
 	"time"
 
-	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/SDP"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Snowflake"
+	"git.hub.com/wangyl/MediaSreamServer/internal/SDP"
+	"git.hub.com/wangyl/MediaSreamServer/pkg/Logger"
+	"git.hub.com/wangyl/MediaSreamServer/pkg/Snowflake"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )

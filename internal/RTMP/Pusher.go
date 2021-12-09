@@ -1,7 +1,7 @@
 package RTMP
 
 import (
-	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTP"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RTP"
 	"sync"
 )
 

@@ -3,7 +3,7 @@ package RTMP
 import (
 	"encoding/binary"
 	"fmt"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RichConn"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RichConn"
 )
 
 type Chunk struct {

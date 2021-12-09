@@ -2,8 +2,8 @@ package RTSP
 
 import (
 	"fmt"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Logger"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Settings"
+	"git.hub.com/wangyl/MediaSreamServer/pkg/Logger"
+	"git.hub.com/wangyl/MediaSreamServer/pkg/Settings"
 	"net"
 )
 

@@ -1,6 +1,6 @@
-module git.hub.com/wangyl/RTSP_AGREEMENT
+module git.hub.com/wangyl/MediaSreamServer
 
-go 1.15
+go 1.16
 
 require (
 	github.com/BurntSushi/toml v0.3.1

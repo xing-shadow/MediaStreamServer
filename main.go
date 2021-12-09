@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"git.hub.com/wangyl/RTSP_AGREEMENT/Global"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/internal/RTSP"
-	"git.hub.com/wangyl/RTSP_AGREEMENT/pkg/Settings"
+	"git.hub.com/wangyl/MediaSreamServer/Global"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RTSP"
+	"git.hub.com/wangyl/MediaSreamServer/pkg/Settings"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
