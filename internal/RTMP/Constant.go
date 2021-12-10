@@ -1,5 +1,9 @@
 package RTMP
 
+const (
+	TcpBufferSize = 1024 * 1024 * 1
+)
+
 type MessageType int
 
 //rtmp消息类型

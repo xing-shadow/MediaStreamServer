@@ -33,11 +33,11 @@ type RtmpServer struct {
 
 func NewRtmpServer(opt Option) *RtmpServer {
 	opt.fixme()
-	rtspServer := &RtmpServer{
+	rtmpServer := &RtmpServer{
 		opt:         opt,
 		PushManager: NewPusherManager(),
 	}
-	return rtspServer
+	return rtmpServer
 }
 
 func (s *RtmpServer) Serve() error {
@@ -45,6 +45,7 @@ func (s *RtmpServer) Serve() error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Start RTSP Server at [%d]\n", s.opt.Cfg.RtmpPort)
 	s.Exit = make(chan struct{})
 	s.listener = listener
 	go s.handleConn()

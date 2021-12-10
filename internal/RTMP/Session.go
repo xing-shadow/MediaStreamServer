@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"git.hub.com/wangyl/MediaSreamServer/internal/RTP"
 	"git.hub.com/wangyl/MediaSreamServer/internal/RichConn"
 	"git.hub.com/wangyl/MediaSreamServer/pkg/Logger"
 	"git.hub.com/wangyl/MediaSreamServer/pkg/Snowflake"
 	"github.com/gwuhaolin/livego/protocol/amf"
+	"go.uber.org/zap"
 	"io"
 	"net"
 	"sync"
@@ -41,7 +41,6 @@ type Session struct {
 	ackReceived         uint32
 	done                bool
 
-	MsgHandleFunc  []func(frame RTP.Frame)
 	StopHandleFunc []func()
 
 	Stoped bool
@@ -74,6 +73,7 @@ func (s *Session) start() {
 		s.stop()
 	}()
 	if err := s.handleShake(); err != nil {
+		Logger.GetLogger().Error("HandleShake fail:"+err.Error(), zap.String("ConnAddr", s.getAddr()))
 		return
 	}
 	for !s.Stoped {
@@ -93,9 +93,16 @@ func (s *Session) start() {
 	}
 	//
 	if s.isPublisher {
-		//NewPusher()
+		_, name, _ := s.getInfo()
+		NewPusher(name, s)
 	} else {
-
+		_, name, _ := s.getInfo()
+		pusher, ok := s.srv.PushManager.getPusher(name)
+		if !ok {
+			s.stop()
+			return
+		}
+		NewPlayer(s, pusher)
 	}
 }
 
@@ -227,8 +234,8 @@ func (s *Session) handleControlMsg(chunk Chunk) {
 }
 
 func (s *Session) handleShake() (err error) {
-	var C0C1C2 [1 + 1536*2]byte
-	var S0S1S2 [1 + 1536*2]byte
+	var C0C1C2 = make([]byte, 1+1536*2)
+	var S0S1S2 = make([]byte, 1+1536*2)
 	C0C1 := C0C1C2[:1+1536]
 	if _, err = io.ReadFull(s.connRw, C0C1); err != nil {
 		return
@@ -395,6 +402,7 @@ func (s *Session) stop() {
 	for _, f := range s.StopHandleFunc {
 		f()
 	}
+	s.richConn.Conn.Close()
 }
 
 type PublishInfo struct {
@@ -575,4 +583,8 @@ func (s *Session) releaseStream(vs []interface{}) error {
 
 func (s *Session) fcPublish(vs []interface{}) error {
 	return nil
+}
+
+func (s *Session) getAddr() string {
+	return s.richConn.Conn.RemoteAddr().String()
 }

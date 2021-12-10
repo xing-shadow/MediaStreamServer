@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"git.hub.com/wangyl/MediaSreamServer/Global"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RTMP"
 	"git.hub.com/wangyl/MediaSreamServer/internal/RTSP"
 	"git.hub.com/wangyl/MediaSreamServer/pkg/Settings"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -25,13 +26,18 @@ func main() {
 		fmt.Println("Global Init fail:", err)
 		os.Exit(-1)
 	}
-	//start service
+	//start rtsp service
 	var rtspSrv = RTSP.NewRtspServer(RTSP.Option{Cfg: Settings.GetConfig().RtspServer})
 	if err := rtspSrv.Serve(); err != nil {
 		fmt.Println("Start Rtsp Server Fail:", err)
 		os.Exit(-1)
 	}
-
+	//start rtmp service
+	var rtmpSrv = RTMP.NewRtmpServer(RTMP.Option{Cfg: Settings.GetConfig().RtmpServer})
+	if err := rtmpSrv.Serve(); err != nil {
+		fmt.Println("Start Rtsp Server Fail:", err)
+		os.Exit(-1)
+	}
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	s := <-quit

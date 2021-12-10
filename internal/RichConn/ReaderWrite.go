@@ -21,7 +21,7 @@ func (pThis *ReaderWriter) Read(p []byte) (int, error) {
 	if pThis.readErr != nil {
 		return 0, pThis.readErr
 	}
-	n, err := io.ReadAtLeast(pThis, p, len(p))
+	n, err := io.ReadAtLeast(pThis.ReadWriter, p, len(p))
 	pThis.readErr = err
 	return n, err
 }

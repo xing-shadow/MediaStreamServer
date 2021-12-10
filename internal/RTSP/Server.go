@@ -41,10 +41,12 @@ func NewRtspServer(opt Option) *RtspServer {
 }
 
 func (s *RtspServer) Serve() error {
+
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.opt.Cfg.RtspPort))
 	if err != nil {
 		return err
 	}
+	fmt.Printf("Start RTSP Server at [%d]\n", s.opt.Cfg.RtspPort)
 	s.Exit = make(chan struct{})
 	s.listener = listener
 	go s.handleConn()
