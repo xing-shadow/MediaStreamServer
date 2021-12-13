@@ -21,6 +21,6 @@ ffplay -loglevel debug "rtsp://admin:123456@localhost:11554/ChannelCode=1"
 
 ### rtmp测试
 
-ffmpeg -re -i ./test.mp4 -c copy -f flv "rtmp://localhost:1935/live/test"
+ffmpeg -re -i ./test.mp4 -c copy -f flv "rtmp://localhost:1935/live/test"  
 ffplay rtmp://localhost:1935/live/test
 
