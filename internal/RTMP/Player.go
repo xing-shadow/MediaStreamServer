@@ -1,15 +1,18 @@
 package RTMP
 
 import (
+	"fmt"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RTMP/container"
 	"git.hub.com/wangyl/MediaSreamServer/pkg/Logger"
-	"github.com/gwuhaolin/livego/av"
 	"go.uber.org/zap"
 )
 
 type Player struct {
 	Id string
 
-	s    *Session
+	s *Session
+
+	init bool
 	stop bool
 }
 
@@ -25,10 +28,11 @@ func NewPlayer(s *Session, pusher *Pusher) *Player {
 	return player
 }
 
-func (pThis *Player) HandlePacket(packet Packet) {
+func (pThis *Player) HandlePacket(packet *container.Packet) {
 	var err error
 	defer func() {
 		if err != nil {
+			pThis.s.StopCodec = fmt.Sprintf("Player HandlePacket Fail:%v", err)
 			pThis.Stop()
 		}
 	}()
@@ -39,18 +43,29 @@ func (pThis *Player) HandlePacket(packet Packet) {
 	cs.timestamp = packet.TimeStamp
 
 	if packet.IsVideo {
-		cs.typeId = av.TAG_VIDEO
+		cs.typeId = container.TAG_VIDEO
 	} else {
 		if packet.IsMetadata {
-			cs.typeId = av.TAG_SCRIPTDATAAMF0
+			cs.typeId = container.TAG_SCRIPTDATAAMF0
 		} else {
-			cs.typeId = av.TAG_AUDIO
+			cs.typeId = container.TAG_AUDIO
 		}
 	}
 	err = pThis.s.writeChunk(&cs)
 	if err != nil {
 		Logger.GetLogger().Error("Write packet fail:"+err.Error(), zap.String("ConnAddr", pThis.s.getAddr()))
 		return
+	}
+}
+
+func (pThis *Player) Check() {
+	for {
+		if _, err := pThis.s.readMsg(); err != nil {
+			Logger.GetLogger().Error("player Check fail:"+err.Error(), zap.String("ConnAddr", pThis.s.getAddr()))
+			pThis.s.StopCodec = fmt.Sprintf("Player Check fail:%v", err)
+			pThis.Stop()
+			return
+		}
 	}
 }
 

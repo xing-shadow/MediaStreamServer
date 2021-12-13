@@ -46,3 +46,8 @@ const (
 	pingRequest      uint32 = 6
 	pingResponse     uint32 = 7
 )
+
+const (
+	chunkSize       = 1024
+	remoteChunkSize = 128
+)

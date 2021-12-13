@@ -43,7 +43,8 @@ type Session struct {
 
 	StopHandleFunc []func()
 
-	Stoped bool
+	Stoped    bool
+	StopCodec string
 }
 
 func NewSession(ctx *Context, conn net.Conn, srv *RtmpServer) *Session {
@@ -54,8 +55,8 @@ func NewSession(ctx *Context, conn net.Conn, srv *RtmpServer) *Session {
 		srv:                 srv,
 		richConn:            RichConn.NewConnRich(conn, time.Second*time.Duration(srv.opt.Cfg.ReadTimeout), time.Second*time.Duration(srv.opt.Cfg.WriteTimeout)),
 		chunks:              make(map[uint32]Chunk),
-		chunkSize:           128,
-		remoteChunkSize:     128,
+		chunkSize:           chunkSize,
+		remoteChunkSize:     remoteChunkSize,
 		windowAckSize:       2500000,
 		remoteWindowAckSize: 2500000,
 		Stoped:              false,
@@ -64,7 +65,7 @@ func NewSession(ctx *Context, conn net.Conn, srv *RtmpServer) *Session {
 		encoder: &amf.Encoder{},
 		buff:    bytes.NewBuffer(nil),
 	}
-	s.connRw = RichConn.NewReadrWriter(s.richConn, 4*1024)
+	s.connRw = RichConn.NewReadrWriter(s.richConn, 1*1024*1024)
 	return s
 }
 
@@ -74,16 +75,21 @@ func (s *Session) start() {
 	}()
 	if err := s.handleShake(); err != nil {
 		Logger.GetLogger().Error("HandleShake fail:"+err.Error(), zap.String("ConnAddr", s.getAddr()))
+		s.StopCodec = fmt.Sprintf("handleShake fail:%v", err)
 		return
 	}
 	for !s.Stoped {
 		if c, err := s.readMsg(); err != nil {
 			Logger.GetLogger().Error("Read Msg Error:" + err.Error())
+			s.StopCodec = fmt.Sprintf("read cmd msg fail:%v", err)
+			return
 		} else {
 			switch c.typeId {
 			case 20, 17:
 				if err := s.handleCmdMsg(&c); err != nil {
+					s.StopCodec = fmt.Sprintf("handle cmd msg fail:%v", err)
 					Logger.GetLogger().Error("Handle Msg Error:" + err.Error())
+					return
 				}
 			}
 			if s.done {
@@ -94,15 +100,24 @@ func (s *Session) start() {
 	//
 	if s.isPublisher {
 		_, name, _ := s.getInfo()
-		NewPusher(name, s)
+		pusher, ok := NewPusher(name, s)
+		if ok {
+			go pusher.checkPusher()
+			pusher.SendPacket()
+		} else {
+			s.StopCodec = "pusher already exists"
+		}
 	} else {
 		_, name, _ := s.getInfo()
 		pusher, ok := s.srv.PushManager.getPusher(name)
 		if !ok {
+			s.StopCodec = "player exit,because not found pusher"
 			s.stop()
 			return
 		}
-		NewPlayer(s, pusher)
+		player := NewPlayer(s, pusher)
+		s.richConn.ReadTimeout = 0
+		player.Check()
 	}
 }
 
@@ -180,13 +195,13 @@ func (s *Session) readMsg() (Chunk, error) {
 		csId := b & 0x3f
 		switch csId {
 		case 0:
-			b, err = s.connRw.ReadUintBE(1)
+			b, err = s.connRw.ReadUintLE(1)
 			if err != nil {
 				return Chunk{}, err
 			}
 			csId = 64 + b
 		case 1:
-			if b, err = s.connRw.ReadUintBE(2); err != nil {
+			if b, err = s.connRw.ReadUintLE(2); err != nil {
 				return Chunk{}, err
 			}
 			csId = 64 + b
@@ -237,22 +252,38 @@ func (s *Session) handleShake() (err error) {
 	var C0C1C2 = make([]byte, 1+1536*2)
 	var S0S1S2 = make([]byte, 1+1536*2)
 	C0C1 := C0C1C2[:1+1536]
+	S0S1 := S0S1S2[:1+1536]
+	C1 := C0C1[1:]
+	S2 := S0S1S2[1+1536:]
 	if _, err = io.ReadFull(s.connRw, C0C1); err != nil {
 		return
 	}
 	if C0C1[0] != 3 {
-		err = fmt.Errorf("rtsp handleshake invalid version:%d", C0C1[0])
-		return
+		err = fmt.Errorf("rtmp: handshake version=%d invalid", C0C1[0])
 	}
-	zero := binary.BigEndian.Uint32(C0C1[5:9])
-	if zero != 0 {
-		err = fmt.Errorf("rtsp handleshake invalid zero")
-		return
+	cliTime := binary.BigEndian.Uint32(C1[0:4])
+	cliVer := binary.BigEndian.Uint32(C1[4:8])
+	srvVer := uint32(0x0d0e0a0d)
+	srvTime := cliTime
+	if cliVer != 0 { //复杂握手
+		var ok bool
+		var digest []byte
+		if ok, digest = parseC1(C1, hsClientPartialKey); !ok {
+			err = fmt.Errorf("rtmp: handshake server: C1 invalid")
+			return
+		}
+		createS0S1(S0S1, srvTime, srvVer, hsServerPartialKey)
+		CreateS2(S2, digest)
+	} else { //简单握手
+		S0S1S2[0] = 3
+		binary.BigEndian.PutUint32(S0S1S2[5:9], 0)
+		copy(S0S1S2[1536+1:], C0C1[1:])
 	}
-	S0S1S2[0] = 3
-	copy(S0S1S2[1536+1:], C0C1[1:])
 	if _, err = s.connRw.Write(S0S1S2[:]); err != nil {
 		return
+	}
+	if err = s.connRw.Flush(); err != nil {
+		return err
 	}
 	if _, err = io.ReadFull(s.connRw, C0C1C2[1+1536:]); err != nil {
 		return
@@ -312,10 +343,8 @@ func (s *Session) writeChunk(c *Chunk) (err error) {
 			inc = len(c.Data) - start
 		}
 		buf := c.Data[start : start+inc]
-		_, err = s.connRw.Write(buf)
-		if err != nil {
-			return
-		}
+		s.connRw.Write(buf)
+		s.connRw.Flush()
 		start += inc
 	}
 	return s.connRw.Flush()
@@ -402,6 +431,7 @@ func (s *Session) stop() {
 	for _, f := range s.StopHandleFunc {
 		f()
 	}
+	Logger.GetLogger().Warn(fmt.Sprintf("Session Stop:%v", s.StopCodec), zap.String("ConnAddr", s.getAddr()))
 	s.richConn.Conn.Close()
 }
 
@@ -463,7 +493,7 @@ func (s *Session) connectCmdResp(c *Chunk) error {
 	if err != nil {
 		return err
 	}
-	chunk = newSetChunkSize(1024)
+	chunk = newSetChunkSize(chunkSize)
 	err = s.writeChunk(&chunk)
 	if err != nil {
 		return err
@@ -502,9 +532,9 @@ func (s *Session) publishOrPlay(vs []interface{}) error {
 		switch v.(type) {
 		case string:
 			if k == 2 {
-				s.publishInfo.Type = v.(string)
-			} else if k == 3 {
 				s.publishInfo.Name = v.(string)
+			} else if k == 3 {
+				s.publishInfo.Type = v.(string)
 			}
 		case float64:
 			s.transactionID = int(v.(float64))

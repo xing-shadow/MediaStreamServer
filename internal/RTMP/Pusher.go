@@ -1,8 +1,9 @@
 package RTMP
 
 import (
-	"git.hub.com/wangyl/MediaSreamServer/pkg/Logger"
-	"github.com/gwuhaolin/livego/av"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RTMP/cache"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RTMP/container"
+	"git.hub.com/wangyl/MediaSreamServer/internal/RTMP/container/flv"
 	"sync"
 	"time"
 )
@@ -60,44 +61,44 @@ type Pusher struct {
 	player      map[string]*Player
 	playerMutex sync.RWMutex
 
-	stop bool
+	deMuxer *flv.DeMuxer
+	cache   *cache.Cache
+	stop    bool
 }
 
-func NewPusher(id string, s *Session) {
+func NewPusher(id string, s *Session) (*Pusher, bool) {
 	if _, ok := s.srv.PushManager.pusherIsExit(id); ok {
-		return
+		return nil, false
 	}
 	pusher := &Pusher{
 		Id:          id,
 		s:           s,
-		player:      nil,
+		player:      make(map[string]*Player),
 		playerMutex: sync.RWMutex{},
+		deMuxer:     flv.NewDeMuxer(),
+		cache:       cache.NewCache(),
 	}
 	s.srv.PushManager.addPusher(pusher)
 	s.StopHandleFunc = append(s.StopHandleFunc, func() {
+		s.srv.PushManager.removePusher(pusher)
 		pusher.playerMutex.Lock()
 		for _, player := range pusher.player {
+			player.s.StopCodec = "player exit ,because pusher exit"
 			player.Stop()
 		}
 		pusher.playerMutex.Unlock()
 	})
-	go pusher.SendPacket()
-	go pusher.checkPusher()
+	return pusher, true
 }
 
 func (pThis *Pusher) SendPacket() {
-	defer func() {
-		if err := recover(); err != nil {
-			Logger.GetLogger().Errorf("Pusher.SendPacket Panic:%v", err)
-		}
-		pThis.Stop()
-	}()
 	for !pThis.stop {
 		packet, err := pThis.readPacket()
 		if err != nil {
 			return
 		}
-		pThis.broadcast(packet)
+		pThis.cache.Write(&packet)
+		pThis.broadcast(&packet)
 	}
 }
 
@@ -111,39 +112,46 @@ func (pThis *Pusher) checkPusher() {
 		playerNums := len(pThis.player)
 		pThis.playerMutex.RUnlock()
 		if playerNums == 0 {
+			pThis.s.StopCodec = "pusher idle time to long,push stop"
 			break
 		}
 	}
 }
 
-func (pThis *Pusher) broadcast(packet Packet) {
+func (pThis *Pusher) broadcast(packet *container.Packet) {
 	pThis.playerMutex.RLock()
 	for _, player := range pThis.player {
-		player.HandlePacket(packet)
+		if !player.init {
+			pThis.cache.Send(player)
+			player.init = true
+		} else {
+			player.HandlePacket(packet)
+		}
 	}
 	pThis.playerMutex.RUnlock()
 }
 
-func (pThis *Pusher) readPacket() (packet Packet, err error) {
+func (pThis *Pusher) readPacket() (packet container.Packet, err error) {
 	var cs Chunk
 	for {
 		cs, err = pThis.s.readMsg()
 		if err != nil {
 			return
 		}
-		if cs.typeId == av.TAG_AUDIO ||
-			cs.typeId == av.TAG_VIDEO ||
-			cs.typeId == av.TAG_SCRIPTDATAAMF0 ||
-			cs.typeId == av.TAG_SCRIPTDATAAMF3 {
+		if cs.typeId == container.TAG_AUDIO ||
+			cs.typeId == container.TAG_VIDEO ||
+			cs.typeId == container.TAG_SCRIPTDATAAMF0 ||
+			cs.typeId == container.TAG_SCRIPTDATAAMF3 {
 			break
 		}
 	}
-	packet.IsAudio = cs.typeId == av.TAG_AUDIO
-	packet.IsVideo = cs.typeId == av.TAG_VIDEO
-	packet.IsMetadata = cs.typeId == av.TAG_SCRIPTDATAAMF0 || cs.typeId == av.TAG_SCRIPTDATAAMF3
+	packet.IsAudio = cs.typeId == container.TAG_AUDIO
+	packet.IsVideo = cs.typeId == container.TAG_VIDEO
+	packet.IsMetadata = cs.typeId == container.TAG_SCRIPTDATAAMF0 || cs.typeId == container.TAG_SCRIPTDATAAMF3
 	packet.StreamID = cs.streamId
 	packet.Data = cs.Data
 	packet.TimeStamp = cs.timestamp
+	err = pThis.deMuxer.DeMuxH(&packet) //解析flv-tag
 	return
 }
 

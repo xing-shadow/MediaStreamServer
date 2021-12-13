@@ -24,7 +24,7 @@ type Chunk struct {
 }
 
 func (c *Chunk) reInit() {
-	c.remain = 0
+	c.remain = c.length
 	c.index = 0
 	c.got = false
 	c.Data = make([]byte, c.length)

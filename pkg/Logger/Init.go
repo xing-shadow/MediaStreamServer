@@ -18,8 +18,8 @@ var (
 	errorConsoleWS                 = zapcore.Lock(os.Stderr)
 )
 
-func GetLogger() *Logger {
-	return logger
+func GetLogger() *zap.Logger {
+	return logger.log
 }
 
 func Init(opts ...ModOptions) (err error) {
