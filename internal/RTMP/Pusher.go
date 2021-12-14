@@ -4,6 +4,8 @@ import (
 	"git.hub.com/wangyl/MediaSreamServer/internal/RTMP/cache"
 	"git.hub.com/wangyl/MediaSreamServer/internal/RTMP/container"
 	"git.hub.com/wangyl/MediaSreamServer/internal/RTMP/container/flv"
+	"git.hub.com/wangyl/MediaSreamServer/pkg/Logger"
+	"go.uber.org/zap"
 	"sync"
 	"time"
 )
@@ -60,13 +62,14 @@ type Pusher struct {
 
 	player      map[string]*Player
 	playerMutex sync.RWMutex
-
-	deMuxer *flv.DeMuxer
-	cache   *cache.Cache
-	stop    bool
+	flvMuxer    *flv.FlvWriter
+	flvInit     bool
+	deMuxer     *flv.DeMuxer
+	cache       *cache.Cache
+	stop        bool
 }
 
-func NewPusher(id string, s *Session) (*Pusher, bool) {
+func NewPusher(app string, id string, s *Session) (*Pusher, bool) {
 	if _, ok := s.srv.PushManager.pusherIsExit(id); ok {
 		return nil, false
 	}
@@ -78,15 +81,25 @@ func NewPusher(id string, s *Session) (*Pusher, bool) {
 		deMuxer:     flv.NewDeMuxer(),
 		cache:       cache.NewCache(),
 	}
+	var err error
+	pusher.flvMuxer, err = flv.NewFlvWriter(s.srv.opt.Cfg.FlvDir, app, id)
+	if err != nil {
+		Logger.GetLogger().Error("create flv file fail:"+err.Error(), zap.String("PusherName", id))
+	}
 	s.srv.PushManager.addPusher(pusher)
 	s.StopHandleFunc = append(s.StopHandleFunc, func() {
+		//
 		s.srv.PushManager.removePusher(pusher)
+		///
 		pusher.playerMutex.Lock()
 		for _, player := range pusher.player {
 			player.s.StopCodec = "player exit ,because pusher exit"
 			player.Stop()
 		}
 		pusher.playerMutex.Unlock()
+		//
+		pusher.flvMuxer.Close()
+
 	})
 	return pusher, true
 }
@@ -98,6 +111,12 @@ func (pThis *Pusher) SendPacket() {
 			return
 		}
 		pThis.cache.Write(&packet)
+		if !pThis.flvInit {
+			pThis.cache.Send(pThis.flvMuxer)
+			pThis.flvInit = true
+		} else {
+			pThis.flvMuxer.HandlePacket(&packet)
+		}
 		pThis.broadcast(&packet)
 	}
 }

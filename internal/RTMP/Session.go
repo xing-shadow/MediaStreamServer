@@ -99,10 +99,10 @@ func (s *Session) start() {
 	}
 	//
 	if s.isPublisher {
-		_, name, _ := s.getInfo()
-		pusher, ok := NewPusher(name, s)
+		app, name, _ := s.getInfo()
+		pusher, ok := NewPusher(app, name, s)
 		if ok {
-			go pusher.checkPusher()
+			//go pusher.checkPusher()
 			pusher.SendPacket()
 		} else {
 			s.StopCodec = "pusher already exists"
@@ -344,7 +344,6 @@ func (s *Session) writeChunk(c *Chunk) (err error) {
 		}
 		buf := c.Data[start : start+inc]
 		s.connRw.Write(buf)
-		s.connRw.Flush()
 		start += inc
 	}
 	return s.connRw.Flush()
@@ -436,7 +435,7 @@ func (s *Session) stop() {
 }
 
 type PublishInfo struct {
-	Type string
+	Type string //live record append
 	Name string
 }
 
@@ -557,9 +556,9 @@ func (s *Session) playResp(c *Chunk) error {
 	if err := s.setBegin(); err != nil {
 		return err
 	}
-	if err := s.setRecord(); err != nil {
-		return err
-	}
+	//if err := s.setRecord(); err != nil {
+	//	return err
+	//}
 	event := make(amf.Object)
 	event["level"] = "status"
 	event["code"] = "NetStream.Play.Reset"

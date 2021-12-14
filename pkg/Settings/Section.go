@@ -13,9 +13,10 @@ type RtspServer struct {
 }
 
 type RtmpServer struct {
-	RtmpPort     int `toml:"RtmpPort"`
-	ReadTimeout  int `toml:"ReadTimeout"`
-	WriteTimeout int `toml:"WriteTimeout"`
+	RtmpPort     int    `toml:"RtmpPort"`
+	ReadTimeout  int    `toml:"ReadTimeout"`
+	WriteTimeout int    `toml:"WriteTimeout"`
+	FlvDir       string `toml:"FlvDir"`
 }
 
 type Logger struct {

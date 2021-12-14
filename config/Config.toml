@@ -14,3 +14,4 @@ Development = true
 RtmpPort = 1935
 ReadTimeout = 10 #s
 WriteTimeout = 10 #s
+FlvDir = "./tmp"

@@ -1,9 +1,8 @@
 package Snowflake
 
 import (
-	"sync"
-
 	"github.com/bwmarrin/snowflake"
+	"sync"
 )
 
 var node *snowflake.Node
