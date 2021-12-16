@@ -57,13 +57,13 @@ func (pThis *PusherManager) removePusher(pusher *Pusher) {
 }
 
 type Pusher struct {
-	Id string
-	s  *Session
+	app string
+	Id  string
+	s   *Session
 
 	player      map[string]*Player
 	playerMutex sync.RWMutex
 	flvMuxer    *flv.FlvWriter
-	flvInit     bool
 	deMuxer     *flv.DeMuxer
 	cache       *cache.Cache
 	stop        bool
@@ -74,6 +74,7 @@ func NewPusher(app string, id string, s *Session) (*Pusher, bool) {
 		return nil, false
 	}
 	pusher := &Pusher{
+		app:         app,
 		Id:          id,
 		s:           s,
 		player:      make(map[string]*Player),
@@ -82,6 +83,7 @@ func NewPusher(app string, id string, s *Session) (*Pusher, bool) {
 		cache:       cache.NewCache(),
 	}
 	var err error
+
 	pusher.flvMuxer, err = flv.NewFlvWriter(s.srv.opt.Cfg.FlvDir, app, id)
 	if err != nil {
 		Logger.GetLogger().Error("create flv file fail:"+err.Error(), zap.String("PusherName", id))
@@ -90,7 +92,7 @@ func NewPusher(app string, id string, s *Session) (*Pusher, bool) {
 	s.StopHandleFunc = append(s.StopHandleFunc, func() {
 		//
 		s.srv.PushManager.removePusher(pusher)
-		///
+		//
 		pusher.playerMutex.Lock()
 		for _, player := range pusher.player {
 			player.s.StopCodec = "player exit ,because pusher exit"
@@ -111,10 +113,7 @@ func (pThis *Pusher) SendPacket() {
 			return
 		}
 		pThis.cache.Write(&packet)
-		if !pThis.flvInit {
-			pThis.cache.Send(pThis.flvMuxer)
-			pThis.flvInit = true
-		} else {
+		if pThis.app == "record" {
 			pThis.flvMuxer.HandlePacket(&packet)
 		}
 		pThis.broadcast(&packet)
