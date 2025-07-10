@@ -226,24 +226,33 @@ func (s *Session) HandleRtspResponse() {
 	}
 }
 
-//rtsp://admin:admin@host/ChannelCode=xxx
+// rtsp://admin:admin@host/ChannelCode=xxx
 func (s *Session) AuthRequest() (err error) {
-	parts := strings.Split(s.ctx.url.Path, "/")
+	//parts := strings.Split(s.ctx.url.Path, "/")
 	var channelCode string
-	if len(parts) > 1 {
-		data := strings.Split(parts[1], "=")
-		if len(data) == 2 {
-			channelCode = data[1]
-		} else {
-			err = errors.New("url format error")
-			return
-		}
+	//if len(parts) > 1 {
+	//	data := strings.Split(parts[1], "=")
+	//	if len(data) == 2 {
+	//		channelCode = data[1]
+	//	} else {
+	//		err = errors.New("url format error")
+	//		return
+	//	}
+	//}
+	channelCode = s.ctx.url.Path
+	if len(s.ctx.url.Query()) > 0 {
+		channelCode += "?" + s.ctx.url.Query().Encode()
 	}
 	if len(channelCode) == 0 {
 		return errors.New("not found channelCode")
 	}
-	if len(s.channelCode) != 0 && s.channelCode != channelCode {
-		return errors.New("channelCode mismatch")
+	if len(s.channelCode) != 0 {
+		if strings.Index(channelCode, s.channelCode) != 0 {
+			fmt.Println(channelCode, s.channelCode)
+			fmt.Println(strings.Index(channelCode, s.channelCode))
+			return errors.New("channelCode mismatch")
+		}
+
 	} else {
 		s.channelCode = channelCode
 	}
@@ -438,9 +447,9 @@ func (s *Session) checkAuth() bool {
 }
 
 /*
-	HA1=MD5(username:realm:password)
-	HA2=MD5(method:uri)
-	Response =MD5(HA1:nonce:HA2)
+HA1=MD5(username:realm:password)
+HA2=MD5(method:uri)
+Response =MD5(HA1:nonce:HA2)
 */
 func (s *Session) digestAuth(auth string, method string) bool {
 	usernameReg := regexp.MustCompile(`username="(.*?)"`)
@@ -480,4 +489,5 @@ func (s *Session) stop() {
 		s.richConn.Conn.Close()
 		s.richConn = nil
 	}
+	Logger.GetLogger().Warn("Session Stoped", zap.Int("session_type", int(s.SessionType)))
 }

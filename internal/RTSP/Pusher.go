@@ -78,7 +78,6 @@ func NewPusher(s *Session) (*Pusher, bool) {
 	s.stopHandleFunc = append(s.stopHandleFunc, func() {
 		close(pusher.exit)
 		s.Server.PushManager.removePusher(pusher)
-		pusher.ClearPlayer()
 	})
 	go pusher.checkPusher()
 	return pusher, false
@@ -152,13 +151,5 @@ func (pThis *Pusher) ReceiveRtp() {
 		case <-pThis.exit:
 			return
 		}
-	}
-}
-
-func (pThis *Pusher) ClearPlayer() {
-	pThis.playerMutex.Lock()
-	defer pThis.playerMutex.Unlock()
-	for _, player := range pThis.player {
-		player.Stop()
 	}
 }

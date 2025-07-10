@@ -14,21 +14,23 @@ type Player struct {
 	cond       *sync.Cond
 	queue      []RTP.Frame
 	queueLimit int
+	pusherDone chan struct{}
 }
 
 func NewPlayer(pusher *Pusher, s *Session) *Player {
 	player := &Player{
-		s:    s,
-		cond: sync.NewCond(&sync.Mutex{}),
+		s:          s,
+		cond:       sync.NewCond(&sync.Mutex{}),
+		pusherDone: pusher.exit,
 	}
 	if old, isExit := pusher.addPlayer(player); isExit {
 		return old
 	}
 	s.stopHandleFunc = append(s.stopHandleFunc, func() {
+		player.cond.L.Lock()
 		player.cond.Broadcast()
-		pusher.playerMutex.Lock()
+		player.cond.L.Unlock()
 		pusher.removePlayer(s.sessionID)
-		pusher.playerMutex.Unlock()
 	})
 	s.rtpHandleFunc = append(s.rtpHandleFunc, func(frame RTP.Frame) {
 		if s.stoped {
@@ -55,47 +57,53 @@ func (pThis *Player) receiverFrame() {
 			pl := fmt.Sprintf("Panic: %v\n%s\n", err, buf)
 			fmt.Fprintf(os.Stderr, pl)
 		}
+		pThis.Stop()
 	}()
 	var dataLen = make([]byte, 2)
 	for {
-		var pack RTP.Frame
-		pThis.cond.L.Lock()
-		if len(pThis.queue) == 0 {
-			pThis.cond.Wait()
-		}
-		if pThis.s.stoped {
-			break
-		}
-		pack = pThis.queue[0]
-		pThis.queue = pThis.queue[1:]
-		pThis.cond.L.Unlock()
-		var channel int
-		switch pack.SendType {
-		case RTP_TYPE_VEDIO:
-			channel = pThis.s.vChannel
-		case RTP_TYPE_VIDEOCONTROL:
-			channel = pThis.s.vChannelControl
-		case RTP_TYPE_AUDIO:
-			channel = pThis.s.aChannel
-		case RTP_TYPE_AUDIOCONTROL:
-			channel = pThis.s.vChannelControl
+		select {
+		case <-pThis.pusherDone:
+			return
 		default:
-			continue
+			var pack RTP.Frame
+			pThis.cond.L.Lock()
+			if len(pThis.queue) == 0 {
+				pThis.cond.Wait()
+			}
+			if pThis.s.stoped {
+				break
+			}
+			pack = pThis.queue[0]
+			pThis.queue = pThis.queue[1:]
+			pThis.cond.L.Unlock()
+			var channel int
+			switch pack.SendType {
+			case RTP_TYPE_VEDIO:
+				channel = pThis.s.vChannel
+			case RTP_TYPE_VIDEOCONTROL:
+				channel = pThis.s.vChannelControl
+			case RTP_TYPE_AUDIO:
+				channel = pThis.s.aChannel
+			case RTP_TYPE_AUDIOCONTROL:
+				channel = pThis.s.vChannelControl
+			default:
+				continue
+			}
+			//rtpPacket,err :=  RTP.ParseRTPPack(pack.Data)
+			//if err != nil {
+			//	Logger.GetLogger().Error("Parse Rtp Packet:"+err.Error(), zap.String("ChannelCode", pThis.s.channelCode))
+			//	return
+			//}
+			//fmt.Println(rtpPacket)
+			binary.BigEndian.PutUint16(dataLen, uint16(pack.DataLen))
+			pThis.s.connRwLock.Lock()
+			pThis.s.connRW.WriteByte(0x24)
+			pThis.s.connRW.WriteByte(byte(channel))
+			pThis.s.connRW.Write(dataLen)
+			pThis.s.connRW.Write(pack.Data)
+			pThis.s.connRW.Flush()
+			pThis.s.connRwLock.Unlock()
 		}
-		//rtpPacket,err :=  RTP.ParseRTPPack(pack.Data)
-		//if err != nil {
-		//	Logger.GetLogger().Error("Parse Rtp Packet:"+err.Error(), zap.String("ChannelCode", pThis.s.channelCode))
-		//	return
-		//}
-		//fmt.Println(rtpPacket)
-		binary.BigEndian.PutUint16(dataLen, uint16(pack.DataLen))
-		pThis.s.connRwLock.Lock()
-		pThis.s.connRW.WriteByte(0x24)
-		pThis.s.connRW.WriteByte(byte(channel))
-		pThis.s.connRW.Write(dataLen)
-		pThis.s.connRW.Write(pack.Data)
-		pThis.s.connRW.Flush()
-		pThis.s.connRwLock.Unlock()
 	}
 }
 
