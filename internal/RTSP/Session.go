@@ -452,13 +452,13 @@ HA2=MD5(method:uri)
 Response =MD5(HA1:nonce:HA2)
 */
 func (s *Session) digestAuth(auth string, method string) bool {
-	usernameReg := regexp.MustCompile(`username="(.*?)"`)
+	//usernameReg := regexp.MustCompile(`username="(.*?)"`)
 	uriReg := regexp.MustCompile(`uri="(.*?)"`)
 	respReg := regexp.MustCompile(`response="(.*?)"`)
-	var username string
-	if parts := usernameReg.FindStringSubmatch(auth); len(parts) == 2 {
-		username = parts[1]
-	}
+	//var username string
+	//if parts := usernameReg.FindStringSubmatch(auth); len(parts) == 2 {
+	//	username = parts[1]
+	//}
 	var uri string
 	if parts := uriReg.FindStringSubmatch(auth); len(parts) == 2 {
 		uri = parts[1]
@@ -467,7 +467,7 @@ func (s *Session) digestAuth(auth string, method string) bool {
 	if parts := respReg.FindStringSubmatch(auth); len(parts) == 2 {
 		resp = parts[1]
 	}
-	ha1 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", username, s.realm, "123456"))))
+	ha1 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", s.Server.opt.Cfg.Username, s.realm, s.Server.opt.Cfg.Password))))
 	ha2 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s", method, uri))))
 	authResp := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", ha1, s.nonce, ha2))))
 	if authResp == resp {
@@ -482,6 +482,7 @@ func (s *Session) stop() {
 		return
 	}
 	s.stoped = true
+	Logger.GetLogger().Warn("Session Stoped", zap.String("id", s.sessionID), zap.Int("session_type", int(s.SessionType)), zap.String("remote_addr", s.richConn.Conn.RemoteAddr().String()))
 	for _, f := range s.stopHandleFunc {
 		f()
 	}
@@ -489,5 +490,4 @@ func (s *Session) stop() {
 		s.richConn.Conn.Close()
 		s.richConn = nil
 	}
-	Logger.GetLogger().Warn("Session Stoped", zap.Int("session_type", int(s.SessionType)))
 }

@@ -1,5 +1,7 @@
 [RtspServer]
 RtspPort = 11554
+Username = "admin"
+Password = "Yn9Rvh"
 ReadTimeout = 10 #s
 WriteTimeout = 10 #s
 

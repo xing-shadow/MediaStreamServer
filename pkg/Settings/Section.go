@@ -7,9 +7,11 @@ type Config struct {
 }
 
 type RtspServer struct {
-	RtspPort     int `toml:"RtspPort"`
-	ReadTimeout  int `toml:"ReadTimeout"`
-	WriteTimeout int `toml:"WriteTimeout"`
+	RtspPort     int    `toml:"RtspPort"`
+	ReadTimeout  int    `toml:"ReadTimeout"`
+	WriteTimeout int    `toml:"WriteTimeout"`
+	Username     string `toml:"Username"`
+	Password     string `toml:"Password"`
 }
 
 type RtmpServer struct {
